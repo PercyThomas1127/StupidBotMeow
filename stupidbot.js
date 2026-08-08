@@ -43,6 +43,7 @@ function connect() {
 
     const EQUIP_RETRY_DELAY_MS = 1500
     const EQUIP_MAX_ATTEMPTS = 3
+    const SWAP_TO_OFFHAND_STATUS = 6
 
     const equipTotem = (attempt = 1) => {
         const totem = bot.inventory.items().find(item => item.name === 'totem_of_undying')
@@ -50,6 +51,21 @@ function connect() {
             bot.chat('Totem required')
             return
         }
+
+        const inHotbar = totem.slot >= bot.QUICK_BAR_START && totem.slot < bot.QUICK_BAR_START + 9
+        if (inHotbar) {
+            // selecting a hotbar slot + swapping to offhand only needs simple
+            // packets (held_item_slot, block_dig) - no window-click transaction,
+            // which is the thing the server won't acknowledge (see EQUIP_ERROR)
+            bot.setQuickBarSlot(totem.slot - bot.QUICK_BAR_START)
+            bot._client.write('block_dig', {
+                status: SWAP_TO_OFFHAND_STATUS,
+                location: { x: 0, y: 0, z: 0 },
+                face: 0
+            })
+            return
+        }
+
         bot.equip(totem, 'off-hand').catch(err => {
             log('EQUIP_ERROR', err.message)
             if (attempt < EQUIP_MAX_ATTEMPTS) {
@@ -73,6 +89,19 @@ function connect() {
         })
     })
 
+    const CROUCH_TOGGLE_INTERVAL_MS = 400
+
+    const crouch = (times) => {
+        let toggles = 0
+        const step = () => {
+            if (toggles >= times * 2) return
+            bot.setControlState('sneak', toggles % 2 === 0)
+            toggles++
+            setTimeout(step, CROUCH_TOGGLE_INTERVAL_MS)
+        }
+        step()
+    }
+
     bot.on('messagestr', (message) => {
         if (message.includes('Meow, tp to me.')) {
             bot.chat('/tpa VOlcarona_Alt')
@@ -80,7 +109,7 @@ function connect() {
             bot.chat('/tpahere VOlcarona_Alt')
         } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
             totemModeActive = true
-            bot.chat('Totem mode enabled')
+            crouch(3)
             equipTotem()
         } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {
             totemModeActive = false
