@@ -60,6 +60,35 @@ function connect() {
         step()
     }
 
+    const ARMOR_DESTINATION_BY_SUFFIX = [
+        ['_helmet', 'head'],
+        ['_chestplate', 'torso'],
+        ['_leggings', 'legs'],
+        ['_boots', 'feet'],
+    ]
+    const armorDestinationFor = (itemName) => {
+        const match = ARMOR_DESTINATION_BY_SUFFIX.find(([suffix]) => itemName.endsWith(suffix))
+        return match ? match[1] : null
+    }
+
+    const equipArmorPiece = (slot, destination) => {
+        const inHotbar = slot >= bot.QUICK_BAR_START && slot < bot.QUICK_BAR_START + 9
+        if (!inHotbar) return // can't reliably move it into hand without a window click
+
+        bot.setQuickBarSlot(slot - bot.QUICK_BAR_START)
+        setTimeout(() => {
+            // right-clicking armor auto-equips it (vanilla behavior), swapping any
+            // currently worn piece into hand - avoids window-click transactions
+            bot.activateItem()
+            setTimeout(() => {
+                const held = bot.heldItem
+                if (held && armorDestinationFor(held.name) === destination) {
+                    bot.tossStack(held).catch(err => log('TOSS_ERROR', err.message))
+                }
+            }, 500)
+        }, 300 + Math.random() * 200)
+    }
+
     const equipTotem = (attempt = 1) => {
         const totem = bot.inventory.items().find(item => item.name === 'totem_of_undying')
         if (!totem) {
@@ -100,11 +129,18 @@ function connect() {
         bot.chat('/login smolbrain')
 
         bot.inventory.on('updateSlot', (slot, oldItem, newItem) => {
-            if (!totemModeActive) return
-            if (slot !== bot.getEquipmentDestSlot('off-hand')) return
-            const hadTotem = oldItem && oldItem.name === 'totem_of_undying'
-            const stillHasTotem = newItem && newItem.name === 'totem_of_undying'
-            if (hadTotem && !stillHasTotem) equipTotem()
+            if (totemModeActive && slot === bot.getEquipmentDestSlot('off-hand')) {
+                const hadTotem = oldItem && oldItem.name === 'totem_of_undying'
+                const stillHasTotem = newItem && newItem.name === 'totem_of_undying'
+                if (hadTotem && !stillHasTotem) equipTotem()
+            }
+
+            if (newItem && (!oldItem || oldItem.type !== newItem.type)) {
+                const destination = armorDestinationFor(newItem.name)
+                if (destination && slot !== bot.getEquipmentDestSlot(destination)) {
+                    equipArmorPiece(slot, destination)
+                }
+            }
         })
     })
 
