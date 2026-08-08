@@ -35,7 +35,7 @@ function connect() {
     const bot = mineflayer.createBot({
         host: 'play.skeletonmc.com',
         port: 25565,
-        username: 'stupidbotidk',
+        username: 'MeowMeowNya',
         version: '1.16.5',
     });
 
