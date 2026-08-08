@@ -1,0 +1,18 @@
+stupidbot Commands List
+========================
+
+Anyone can say these in chat:
+- "Meow, tp to me."          -> bot sends /tpa VOlcarona_Alt
+- "Meow, tp me to you."      -> bot sends /tpahere VOlcarona_Alt
+
+VOlcarona_Alt or SpeedStrafe04 only:
+- "Meow, enable totem mode."   -> bot says "Totem mode enabled", equips a
+                                   Totem of Undying to its offhand (or says
+                                   "Totem required" if it has none), and
+                                   auto-re-equips a new totem whenever one
+                                   is consumed
+- "Meow, disable totem mode."  -> bot says "Totem mode disabled." and stops
+                                   auto-re-equipping totems
+- "Meow, do <command>"         -> bot runs /<command>
+                                   (type the command without a leading slash,
+                                   e.g. "Meow, do tpa SpeedStrafe04")

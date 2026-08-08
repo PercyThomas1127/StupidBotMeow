@@ -1,0 +1,9 @@
+const mineflayer = require ('mineflayer');
+const bot = mineflayer.createBot({
+    host: 'play.skeletonmc.com',
+    port: 25565,    
+    username: 'stupidbotidk',
+    
+});
+    
+const delay = ms => new Promise(resolve => setTimeout(r, ms));
