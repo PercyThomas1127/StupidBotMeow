@@ -90,7 +90,6 @@ function connect() {
             if (attempt < EQUIP_MAX_ATTEMPTS) {
                 setTimeout(() => equipTotem(attempt + 1), EQUIP_RETRY_DELAY_MS)
             } else {
-                bot.chat('Failed to equip totem')
                 spin720()
             }
         })
