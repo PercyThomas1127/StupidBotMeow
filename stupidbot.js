@@ -45,6 +45,21 @@ function connect() {
     const EQUIP_MAX_ATTEMPTS = 3
     const SWAP_TO_OFFHAND_STATUS = 6
 
+    const spin720 = () => {
+        const steps = 24
+        const stepRadians = (720 * Math.PI / 180) / steps
+        let currentYaw = bot.entity.yaw
+        let i = 0
+        const step = () => {
+            if (i >= steps) return
+            currentYaw += stepRadians
+            bot.look(currentYaw, 0, true)
+            i++
+            setTimeout(step, 50)
+        }
+        step()
+    }
+
     const equipTotem = (attempt = 1) => {
         const totem = bot.inventory.items().find(item => item.name === 'totem_of_undying')
         if (!totem) {
@@ -76,6 +91,7 @@ function connect() {
                 setTimeout(() => equipTotem(attempt + 1), EQUIP_RETRY_DELAY_MS)
             } else {
                 bot.chat('Failed to equip totem')
+                spin720()
             }
         })
     }
