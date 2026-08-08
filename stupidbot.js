@@ -56,13 +56,17 @@ function connect() {
         if (inHotbar) {
             // selecting a hotbar slot + swapping to offhand only needs simple
             // packets (held_item_slot, block_dig) - no window-click transaction,
-            // which is the thing the server won't acknowledge (see EQUIP_ERROR)
+            // which is the thing the server won't acknowledge (see EQUIP_ERROR).
+            // Selecting the slot and swapping in the same tick reads as instant/
+            // bot-like to anticheat, so space them out like a real key press.
             bot.setQuickBarSlot(totem.slot - bot.QUICK_BAR_START)
-            bot._client.write('block_dig', {
-                status: SWAP_TO_OFFHAND_STATUS,
-                location: { x: 0, y: 0, z: 0 },
-                face: 0
-            })
+            setTimeout(() => {
+                bot._client.write('block_dig', {
+                    status: SWAP_TO_OFFHAND_STATUS,
+                    location: { x: 0, y: 0, z: 0 },
+                    face: 0
+                })
+            }, 300 + Math.random() * 200)
             return
         }
 
