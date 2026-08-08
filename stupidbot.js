@@ -71,22 +71,42 @@ function connect() {
         return match ? match[1] : null
     }
 
-    const equipArmorPiece = (slot, destination) => {
+    const equipArmorPiece = (slot, destination, attempt = 1) => {
         const inHotbar = slot >= bot.QUICK_BAR_START && slot < bot.QUICK_BAR_START + 9
-        if (!inHotbar) return // can't reliably move it into hand without a window click
+        log('ARMOR_DETECTED', { slot, destination, inHotbar, attempt })
 
-        bot.setQuickBarSlot(slot - bot.QUICK_BAR_START)
-        setTimeout(() => {
-            // right-clicking armor auto-equips it (vanilla behavior), swapping any
-            // currently worn piece into hand - avoids window-click transactions
-            bot.activateItem()
+        if (inHotbar) {
+            bot.setQuickBarSlot(slot - bot.QUICK_BAR_START)
             setTimeout(() => {
-                const held = bot.heldItem
-                if (held && armorDestinationFor(held.name) === destination) {
-                    bot.tossStack(held).catch(err => log('TOSS_ERROR', err.message))
-                }
-            }, 500)
-        }, 300 + Math.random() * 200)
+                // right-clicking armor auto-equips it (vanilla behavior), swapping any
+                // currently worn piece into hand - avoids window-click transactions
+                bot.activateItem()
+                setTimeout(() => {
+                    const held = bot.heldItem
+                    if (held && armorDestinationFor(held.name) === destination) {
+                        bot.tossStack(held).catch(err => log('TOSS_ERROR', err.message))
+                    }
+                }, 500)
+            }, 300 + Math.random() * 200)
+            return
+        }
+
+        // not in hotbar: no keybind-only way to move it there, fall back to a
+        // window-click equip (the thing that's known to be unreliable here).
+        // mineflayer's equip swaps the previously worn piece back into `slot`,
+        // so re-check that slot afterward (not the pre-swap item reference,
+        // which would point at the now-stale destination-slot contents)
+        const item = bot.inventory.slots[slot]
+        if (!item) return
+        bot.equip(item, destination).then(() => {
+            const swappedOut = bot.inventory.slots[slot]
+            if (swappedOut) bot.tossStack(swappedOut).catch(err => log('TOSS_ERROR', err.message))
+        }).catch(err => {
+            log('ARMOR_EQUIP_ERROR', err.message)
+            if (attempt < EQUIP_MAX_ATTEMPTS) {
+                setTimeout(() => equipArmorPiece(slot, destination, attempt + 1), EQUIP_RETRY_DELAY_MS)
+            }
+        })
     }
 
     const equipTotem = (attempt = 1) => {
