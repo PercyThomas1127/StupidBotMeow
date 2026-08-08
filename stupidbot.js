@@ -41,13 +41,23 @@ function connect() {
 
     let totemModeActive = false
 
-    const equipTotem = () => {
+    const EQUIP_RETRY_DELAY_MS = 1500
+    const EQUIP_MAX_ATTEMPTS = 3
+
+    const equipTotem = (attempt = 1) => {
         const totem = bot.inventory.items().find(item => item.name === 'totem_of_undying')
-        if (totem) {
-            bot.equip(totem, 'off-hand').catch(err => log('EQUIP_ERROR', err.message))
-        } else {
+        if (!totem) {
             bot.chat('Totem required')
+            return
         }
+        bot.equip(totem, 'off-hand').catch(err => {
+            log('EQUIP_ERROR', err.message)
+            if (attempt < EQUIP_MAX_ATTEMPTS) {
+                setTimeout(() => equipTotem(attempt + 1), EQUIP_RETRY_DELAY_MS)
+            } else {
+                bot.chat('Failed to equip totem')
+            }
+        })
     }
 
     bot.once('spawn', () => {
