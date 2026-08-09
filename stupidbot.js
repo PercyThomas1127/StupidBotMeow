@@ -246,8 +246,16 @@ function connect() {
         if (action) action(msg.payload)
     })
 
+    let lastHudMessage = null
+    const HUD_MESSAGE_PATTERN = /^❤ \d+\/\d+ \| ★ \d+\/\d+ \| ⛨ \d+$/
+
     bot.on('messagestr', (message) => {
-        console.log('[CHAT]', message)
+        const isHudMessage = HUD_MESSAGE_PATTERN.test(message)
+        if (!isHudMessage || message !== lastHudMessage) {
+            console.log('[CHAT]', message)
+        }
+        if (isHudMessage) lastHudMessage = message
+
         if (message.includes('Meow, tp to me.')) {
             actions.tpToMe()
         } else if (message.includes('Meow, tp me to you.')) {
