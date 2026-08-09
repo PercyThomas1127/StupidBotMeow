@@ -171,6 +171,8 @@ function connect() {
     bot.once('spawn', () => {
         console.log('Meow')
         bot.chat('/login smolbrain')
+        reportStatus()
+        bot.on('health', reportStatus)
 
         bot.inventory.on('updateSlot', (slot, oldItem, newItem) => {
             if (totemModeActive && slot === bot.getEquipmentDestSlot('off-hand')) {
@@ -201,27 +203,62 @@ function connect() {
         step()
     }
 
-    bot.on('messagestr', (message) => {
-        if (message.includes('Meow, tp to me.')) {
-            bot.chat('/tpa VOlcarona_Alt')
-        } else if (message.includes('Meow, tp me to you.')) {
-            bot.chat('/tpahere VOlcarona_Alt')
-        } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
+    const reportStatus = () => {
+        if (!process.send) return
+        process.send({
+            type: 'status',
+            data: { connected: !!bot.entity, health: bot.health, totemModeActive }
+        })
+    }
+
+    // actions shared between the in-game chat triggers and the control
+    // panel's IPC commands, so both paths do exactly the same thing
+    const actions = {
+        tpToMe: () => bot.chat('/tpa VOlcarona_Alt'),
+        tpMeToYou: () => bot.chat('/tpahere VOlcarona_Alt'),
+        enableTotemMode: () => {
             totemModeActive = true
             crouch(3)
             equipTotem()
-        } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {
+            reportStatus()
+        },
+        disableTotemMode: () => {
             totemModeActive = false
             bot.chat('Totem mode disabled.')
+            reportStatus()
+        },
+        dropItem: () => dropHeldItemStack(),
+        offhand: () => swapHeldItemToOffhand(),
+        doCommand: (payload) => {
+            if (payload) bot.chat(`/${payload.trim()}`)
+        },
+    }
+
+    // only fires when launched via child_process.fork (e.g. by the control
+    // panel) - process.on('message') is a no-op otherwise
+    process.removeAllListeners('message')
+    process.on('message', (msg) => {
+        if (!msg || msg.type !== 'command') return
+        const action = actions[msg.name]
+        if (action) action(msg.payload)
+    })
+
+    bot.on('messagestr', (message) => {
+        if (message.includes('Meow, tp to me.')) {
+            actions.tpToMe()
+        } else if (message.includes('Meow, tp me to you.')) {
+            actions.tpMeToYou()
+        } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
+            actions.enableTotemMode()
+        } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {
+            actions.disableTotemMode()
         } else if (isFromOperator(message) && message.includes('Meow, drop item.')) {
-            dropHeldItemStack()
+            actions.dropItem()
         } else if (isFromOperator(message) && message.includes('Meow, offhand.')) {
-            swapHeldItemToOffhand()
+            actions.offhand()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
-            if (match) {
-                bot.chat(`/${match[1].trim()}`)
-            }
+            if (match) actions.doCommand(match[1])
         }
     })
 
@@ -238,6 +275,7 @@ function connect() {
     bot.on('end', (reason) => {
         console.log('END', reason)
         log('END', reason)
+        if (process.send) process.send({ type: 'status', data: { connected: false } })
         scheduleReconnect(`end: ${reason}`, disconnectDelay())
     })
     bot.on('error', (err) => {

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>stupidbot control panel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>MeowMeowNya control panel</h1>
+    <div id="status" class="status status-offline">offline</div>
+</header>
+
+<section class="controls">
+    <button id="launch-btn" class="btn btn-start">Launch</button>
+    <button id="shutdown-btn" class="btn btn-stop">Shutdown</button>
+</section>
+
+<section class="controls">
+    <button class="btn" data-command="tpToMe">TP To Me</button>
+    <button class="btn" data-command="tpMeToYou">TP Me To You</button>
+    <button class="btn" data-command="enableTotemMode">Enable Totem Mode</button>
+    <button class="btn" data-command="disableTotemMode">Disable Totem Mode</button>
+    <button class="btn" data-command="dropItem">Drop Item</button>
+    <button class="btn" data-command="offhand">Offhand</button>
+</section>
+
+<section class="controls do-command">
+    <input id="do-command-input" type="text" placeholder="command without leading slash, e.g. tpa SpeedStrafe04">
+    <button id="do-command-btn" class="btn">Do Command</button>
+</section>
+
+<section class="panels">
+    <div class="panel">
+        <h2>Console</h2>
+        <pre id="console-view"></pre>
+    </div>
+    <div class="panel">
+        <h2>Log (errors.txt)</h2>
+        <pre id="log-view"></pre>
+    </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
