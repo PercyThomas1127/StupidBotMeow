@@ -190,6 +190,8 @@ function connect() {
         } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {
             totemModeActive = false
             bot.chat('Totem mode disabled.')
+        } else if (isFromOperator(message) && message.includes('Meow, drop item.')) {
+            dropHeldItemStack()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) {
