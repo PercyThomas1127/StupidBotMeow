@@ -87,7 +87,10 @@ function connect() {
 
     const equipArmorPiece = (slot, destination) => {
         const inHotbar = slot >= bot.QUICK_BAR_START && slot < bot.QUICK_BAR_START + 9
-        if (!inHotbar) return // no keybind-only way to move it into the hotbar - see Commands List.txt caveat
+        if (!inHotbar) {
+            spin720() // no keybind-only way to move it into the hotbar - see Commands List.txt caveat
+            return
+        }
         if (armorSlotsInProgress.has(slot)) return // bot.equip's own optimistic slot updates can re-trigger this
         armorSlotsInProgress.add(slot)
 
