@@ -60,16 +60,21 @@ function connect() {
 
     // swaps the currently held item with whatever's in the offhand (vanilla
     // "F" action) - no window-click transaction needed
+    const offhandSlotItemName = () => {
+        const item = bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]
+        return item && item.name
+    }
+
     const swapHeldItemToOffhand = () => {
-        log('SWAP_OFFHAND', {
-            held: bot.heldItem && bot.heldItem.name,
-            offhand: bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')] && bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')].name
-        })
+        log('SWAP_OFFHAND_BEFORE', { held: bot.heldItem && bot.heldItem.name, offhand: offhandSlotItemName() })
         bot._client.write('block_dig', {
             status: SWAP_TO_OFFHAND_STATUS,
             location: { x: 0, y: 0, z: 0 },
             face: 0
         })
+        setTimeout(() => {
+            log('SWAP_OFFHAND_AFTER', { held: bot.heldItem && bot.heldItem.name, offhand: offhandSlotItemName() })
+        }, 1000)
     }
 
     const spin720 = () => {
