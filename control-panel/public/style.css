@@ -3,8 +3,8 @@
 body {
     margin: 0;
     padding: 24px;
-    background: #14161a;
-    color: #e6e6e6;
+    background: linear-gradient(180deg, #ffeef5 0%, #ffe4ee 100%);
+    color: #5c2a3a;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -15,7 +15,15 @@ header {
     margin-bottom: 20px;
 }
 
-h1 { font-size: 20px; margin: 0; }
+h1 {
+    font-size: 20px;
+    margin: 0;
+    color: #d6336c;
+}
+
+h1::before {
+    content: '🍒 ';
+}
 
 .status {
     padding: 4px 12px;
@@ -23,11 +31,12 @@ h1 { font-size: 20px; margin: 0; }
     font-size: 13px;
     font-weight: 600;
     text-transform: uppercase;
+    border: 1px solid transparent;
 }
 
-.status-offline { background: #3a1f1f; color: #ff8a8a; }
-.status-connecting { background: #3a331f; color: #ffd98a; }
-.status-online { background: #1f3a24; color: #8affa0; }
+.status-offline { background: #ffd9e3; color: #c2185b; border-color: #ffb3c6; }
+.status-connecting { background: #fff0d9; color: #b8791f; border-color: #ffdba3; }
+.status-online { background: #e3fbe8; color: #2e8b4f; border-color: #bdf0c8; }
 
 .controls {
     display: flex;
@@ -37,31 +46,38 @@ h1 { font-size: 20px; margin: 0; }
 }
 
 .btn {
-    background: #23262d;
-    color: #e6e6e6;
-    border: 1px solid #34383f;
-    border-radius: 6px;
+    background: #ffe0ec;
+    color: #b83160;
+    border: 1px solid #ffb3cb;
+    border-radius: 10px;
     padding: 8px 14px;
     font-size: 14px;
     cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease;
 }
 
-.btn:hover { background: #2c3038; }
+.btn:hover { background: #ffc9dd; }
+.btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-start { border-color: #2f6b3a; }
-.btn-stop { border-color: #6b2f2f; }
+.btn-start { background: #d9f7e2; color: #2e8b4f; border-color: #b3ecc4; }
+.btn-start:hover { background: #c3f2d2; }
+
+.btn-stop { background: #ffdbe0; color: #c2185b; border-color: #ffb3bf; }
+.btn-stop:hover { background: #ffc4cd; }
 
 .do-command input {
     flex: 1;
     min-width: 240px;
-    background: #1b1d22;
-    border: 1px solid #34383f;
-    border-radius: 6px;
+    background: #fff5f9;
+    border: 1px solid #ffc2d6;
+    border-radius: 10px;
     padding: 8px 10px;
-    color: #e6e6e6;
+    color: #5c2a3a;
     font-size: 14px;
 }
+
+.do-command input::placeholder { color: #d693ab; }
 
 .panels {
     display: grid;
@@ -72,14 +88,14 @@ h1 { font-size: 20px; margin: 0; }
 .panel h2 {
     font-size: 14px;
     text-transform: uppercase;
-    color: #9aa0aa;
+    color: #c2185b;
     margin: 0 0 8px;
 }
 
 pre {
-    background: #0e0f12;
-    border: 1px solid #23262d;
-    border-radius: 6px;
+    background: #fff5f9;
+    border: 1px solid #ffd0e0;
+    border-radius: 10px;
     padding: 10px;
     height: 60vh;
     overflow-y: auto;
@@ -88,6 +104,7 @@ pre {
     font-size: 12px;
     line-height: 1.4;
     margin: 0;
+    color: #5c2a3a;
 }
 
 @media (max-width: 900px) {
