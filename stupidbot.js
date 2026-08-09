@@ -46,6 +46,15 @@ function connect() {
     const SWAP_TO_OFFHAND_STATUS = 6
     const DROP_ITEM_STACK_STATUS = 3
 
+    // location is meaningless for these action types per vanilla, but some
+    // anti-cheat plugins validate it against the player's actual position for
+    // every player-action packet regardless of type - use our real feet
+    // position instead of a dummy (0,0,0) in case that's why they're ignored
+    const feetPosition = () => {
+        const pos = bot.entity.position
+        return { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) }
+    }
+
     // drops the currently held item stack via the vanilla "Q" action - unlike
     // bot.tossStack(), this needs no window-click transaction (see EQUIP_ERROR/
     // ARMOR_EQUIP_ERROR: this server never acknowledges those)
@@ -53,7 +62,7 @@ function connect() {
         log('DROP_ITEM', { held: bot.heldItem && bot.heldItem.name })
         bot._client.write('block_dig', {
             status: DROP_ITEM_STACK_STATUS,
-            location: { x: 0, y: 0, z: 0 },
+            location: feetPosition(),
             face: 0
         })
     }
@@ -69,7 +78,7 @@ function connect() {
         log('SWAP_OFFHAND_BEFORE', { held: bot.heldItem && bot.heldItem.name, offhand: offhandSlotItemName() })
         bot._client.write('block_dig', {
             status: SWAP_TO_OFFHAND_STATUS,
-            location: { x: 0, y: 0, z: 0 },
+            location: feetPosition(),
             face: 0
         })
         setTimeout(() => {
