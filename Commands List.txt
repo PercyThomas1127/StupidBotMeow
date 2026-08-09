@@ -17,6 +17,8 @@ VOlcarona_Alt or SpeedStrafe04 only:
                                    (type the command without a leading slash,
                                    e.g. "Meow, do tpa SpeedStrafe04")
 - "Meow, drop item."           -> bot drops whatever it's currently holding
+- "Meow, offhand."             -> bot swaps whatever it's currently holding
+                                   into its offhand
 
 Automatic (no chat trigger needed):
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips

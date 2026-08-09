@@ -57,6 +57,16 @@ function connect() {
         })
     }
 
+    // swaps the currently held item with whatever's in the offhand (vanilla
+    // "F" action) - no window-click transaction needed
+    const swapHeldItemToOffhand = () => {
+        bot._client.write('block_dig', {
+            status: SWAP_TO_OFFHAND_STATUS,
+            location: { x: 0, y: 0, z: 0 },
+            face: 0
+        })
+    }
+
     const spin720 = () => {
         const steps = 24
         const stepRadians = (720 * Math.PI / 180) / steps
@@ -125,13 +135,7 @@ function connect() {
             // Selecting the slot and swapping in the same tick reads as instant/
             // bot-like to anticheat, so space them out like a real key press.
             bot.setQuickBarSlot(totem.slot - bot.QUICK_BAR_START)
-            setTimeout(() => {
-                bot._client.write('block_dig', {
-                    status: SWAP_TO_OFFHAND_STATUS,
-                    location: { x: 0, y: 0, z: 0 },
-                    face: 0
-                })
-            }, 300 + Math.random() * 200)
+            setTimeout(swapHeldItemToOffhand, 300 + Math.random() * 200)
             return
         }
 
@@ -192,6 +196,8 @@ function connect() {
             bot.chat('Totem mode disabled.')
         } else if (isFromOperator(message) && message.includes('Meow, drop item.')) {
             dropHeldItemStack()
+        } else if (isFromOperator(message) && message.includes('Meow, offhand.')) {
+            swapHeldItemToOffhand()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) {
