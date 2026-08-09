@@ -16,6 +16,8 @@ VOlcarona_Alt or SpeedStrafe04 only:
 - "Meow, do <command>"         -> bot runs /<command>
                                    (type the command without a leading slash,
                                    e.g. "Meow, do tpa SpeedStrafe04")
+- "Meow, say <message>"        -> bot sends <message> verbatim to public chat
+                                   (no leading slash; e.g. "Meow, say hello")
 - "Meow, drop item."           -> bot drops whatever it's currently holding
 - "Meow, offhand."             -> bot swaps whatever it's currently holding
                                    into its offhand

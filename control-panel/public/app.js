@@ -68,3 +68,14 @@ document.getElementById('do-command-btn').addEventListener('click', () => {
     });
     input.value = '';
 });
+
+document.getElementById('say-btn').addEventListener('click', () => {
+    const input = document.getElementById('say-input');
+    if (!input.value.trim()) return;
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'say', payload: input.value }),
+    });
+    input.value = '';
+});

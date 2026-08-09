@@ -232,6 +232,9 @@ function connect() {
         doCommand: (payload) => {
             if (payload) bot.chat(`/${payload.trim()}`)
         },
+        say: (payload) => {
+            if (payload) bot.chat(payload.trim())
+        },
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
@@ -244,6 +247,7 @@ function connect() {
     })
 
     bot.on('messagestr', (message) => {
+        console.log('[CHAT]', message)
         if (message.includes('Meow, tp to me.')) {
             actions.tpToMe()
         } else if (message.includes('Meow, tp me to you.')) {
@@ -256,6 +260,9 @@ function connect() {
             actions.dropItem()
         } else if (isFromOperator(message) && message.includes('Meow, offhand.')) {
             actions.offhand()
+        } else if (isFromOperator(message) && message.includes('Meow, say ')) {
+            const match = message.match(/Meow, say (.+)/)
+            if (match) actions.say(match[1])
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) actions.doCommand(match[1])
