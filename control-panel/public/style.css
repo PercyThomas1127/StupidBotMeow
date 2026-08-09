@@ -21,10 +21,6 @@ h1 {
     color: #d6336c;
 }
 
-h1::before {
-    content: '🍒 ';
-}
-
 .status {
     padding: 4px 12px;
     border-radius: 999px;
