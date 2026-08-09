@@ -50,6 +50,7 @@ function connect() {
     // bot.tossStack(), this needs no window-click transaction (see EQUIP_ERROR/
     // ARMOR_EQUIP_ERROR: this server never acknowledges those)
     const dropHeldItemStack = () => {
+        log('DROP_ITEM', { held: bot.heldItem && bot.heldItem.name })
         bot._client.write('block_dig', {
             status: DROP_ITEM_STACK_STATUS,
             location: { x: 0, y: 0, z: 0 },
@@ -60,6 +61,10 @@ function connect() {
     // swaps the currently held item with whatever's in the offhand (vanilla
     // "F" action) - no window-click transaction needed
     const swapHeldItemToOffhand = () => {
+        log('SWAP_OFFHAND', {
+            held: bot.heldItem && bot.heldItem.name,
+            offhand: bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')] && bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')].name
+        })
         bot._client.write('block_dig', {
             status: SWAP_TO_OFFHAND_STATUS,
             location: { x: 0, y: 0, z: 0 },
