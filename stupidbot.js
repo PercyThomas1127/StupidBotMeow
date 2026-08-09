@@ -44,6 +44,18 @@ function connect() {
     const EQUIP_RETRY_DELAY_MS = 1500
     const EQUIP_MAX_ATTEMPTS = 3
     const SWAP_TO_OFFHAND_STATUS = 6
+    const DROP_ITEM_STACK_STATUS = 3
+
+    // drops the currently held item stack via the vanilla "Q" action - unlike
+    // bot.tossStack(), this needs no window-click transaction (see EQUIP_ERROR/
+    // ARMOR_EQUIP_ERROR: this server never acknowledges those)
+    const dropHeldItemStack = () => {
+        bot._client.write('block_dig', {
+            status: DROP_ITEM_STACK_STATUS,
+            location: { x: 0, y: 0, z: 0 },
+            face: 0
+        })
+    }
 
     const spin720 = () => {
         const steps = 24
@@ -88,7 +100,7 @@ function connect() {
             setTimeout(() => {
                 const held = bot.heldItem
                 if (held && armorDestinationFor(held.name) === destination) {
-                    bot.tossStack(held).catch(err => log('TOSS_ERROR', err.message))
+                    dropHeldItemStack()
                 }
                 armorSlotsInProgress.delete(slot)
             }, 500)
