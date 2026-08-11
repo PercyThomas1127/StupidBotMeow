@@ -28,12 +28,18 @@ const loggedChatGames = new Set(
 let chatGameBuffer = null;
 let chatGameFlushTimer = null;
 
+// the "CHAT GAMES" header is reused for the round's result announcement too
+// (e.g. "20s have passed! ... The correct answer was ...") - that's not the
+// game itself, so don't log it
+const RESULT_ANNOUNCEMENT_MARKERS = ['have passed!', 'is now over!', 'correct answer was'];
+const isResultAnnouncement = (block) => RESULT_ANNOUNCEMENT_MARKERS.some(marker => block.includes(marker));
+
 const flushChatGame = () => {
     const buffer = chatGameBuffer;
     chatGameBuffer = null;
     if (!buffer || buffer.length === 0) return;
     const block = buffer.join('\n').trim();
-    if (!block || loggedChatGames.has(block)) return;
+    if (!block || loggedChatGames.has(block) || isResultAnnouncement(block)) return;
     loggedChatGames.add(block);
     fs.appendFileSync(CHAT_GAMES_PATH, block + CHAT_GAMES_SEPARATOR);
 };
