@@ -1,6 +1,7 @@
 const mineflayer = require ('mineflayer');
 const fs = require('fs');
 const path = require('path');
+const chatGameSolver = require('./chatgame-solver');
 
 const logPath = path.join(__dirname, 'errors.txt');
 const log = (label, detail) => {
@@ -27,21 +28,38 @@ const loggedChatGames = new Set(
 
 let chatGameBuffer = null;
 let chatGameFlushTimer = null;
+let currentBot = null; // set in connect(); flushChatGame lives outside connect() but needs to chat
 
-// the "CHAT GAMES" header is reused for the round's result announcement too
-// (e.g. "20s have passed! ... The correct answer was ...") - that's not the
-// game itself, so don't log it
-const RESULT_ANNOUNCEMENT_MARKERS = ['have passed!', 'is now over!', 'correct answer was'];
+// the "CHAT GAMES" header is reused for the round's result/winner
+// announcement too (e.g. "20s have passed! ... The correct answer was...",
+// or "X was the fastest to fill `Word` ... and got a prize!") - that's not
+// the game itself, so don't log it, just harvest any word it reveals
+const RESULT_ANNOUNCEMENT_MARKERS = ['have passed!', 'is now over!', 'correct answer was', 'and got a prize!'];
 const isResultAnnouncement = (block) => RESULT_ANNOUNCEMENT_MARKERS.some(marker => block.includes(marker));
+
+const CHAT_GAME_ANSWER_MIN_DELAY_MS = 1800;
+const CHAT_GAME_ANSWER_MAX_DELAY_MS = 3000;
 
 const flushChatGame = () => {
     const buffer = chatGameBuffer;
     chatGameBuffer = null;
     if (!buffer || buffer.length === 0) return;
     const block = buffer.join('\n').trim();
-    if (!block || loggedChatGames.has(block) || isResultAnnouncement(block)) return;
+    if (!block || loggedChatGames.has(block)) return;
     loggedChatGames.add(block);
-    fs.appendFileSync(CHAT_GAMES_PATH, block + CHAT_GAMES_SEPARATOR);
+
+    if (isResultAnnouncement(block)) {
+        chatGameSolver.learnFromAnnouncement(block);
+        return;
+    }
+
+    const answer = chatGameSolver.solve(block);
+    if (answer != null && currentBot) {
+        const delay = CHAT_GAME_ANSWER_MIN_DELAY_MS + Math.random() * (CHAT_GAME_ANSWER_MAX_DELAY_MS - CHAT_GAME_ANSWER_MIN_DELAY_MS);
+        setTimeout(() => currentBot.chat(answer), delay);
+    } else {
+        fs.appendFileSync(CHAT_GAMES_PATH, block + CHAT_GAMES_SEPARATOR);
+    }
 };
 
 const recordChatGameLine = (message) => {
@@ -84,6 +102,7 @@ function connect() {
         username: 'MeowMeowNya',
         version: '1.16.5',
     });
+    currentBot = bot
 
     let totemModeActive = false
 

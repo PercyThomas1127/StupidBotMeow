@@ -27,3 +27,12 @@ Automatic (no chat trigger needed):
   it, replacing whatever's currently worn in that slot, and drops the old
   piece on the ground. Only works if the picked-up armor lands in the
   hotbar (a server limitation, not a choice).
+- "CHAT GAMES" events: if the bot knows how to solve it (write-out/write-out-
+  the-word puzzles, arithmetic "solve" puzzles, "solve for" equation systems,
+  or fill-in-the-word/unscramble puzzles matching a word already learned in
+  chatgame-words.json), it answers in public chat after a random 1.8-3s
+  delay. Otherwise the puzzle is recorded in chatgames.txt (unanswered) for
+  manual solving later - add an "Answer: <value>" line under the question
+  to teach it that exact puzzle. Winner/result announcements aren't logged
+  as puzzles, but any word they reveal is learned automatically for solving
+  future fill-in/unscramble rounds using that same word.
