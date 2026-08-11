@@ -10,6 +10,46 @@ const log = (label, detail) => {
 const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
+// Chat Games are multi-line broadcast puzzles (header, blank lines, equations,
+// etc.) sent as a burst of separate chat messages. Buffer every message from
+// the "CHAT GAMES" header onward, and once the burst goes quiet for a bit,
+// flush the whole block to chatgames.txt - but only if we haven't already
+// logged that exact block before, so repeats of the same puzzle aren't logged.
+const CHAT_GAMES_PATH = path.join(__dirname, 'chatgames.txt');
+const CHAT_GAMES_FLUSH_DELAY_MS = 1500;
+const CHAT_GAMES_SEPARATOR = '\n---\n';
+
+const loggedChatGames = new Set(
+    fs.existsSync(CHAT_GAMES_PATH)
+        ? fs.readFileSync(CHAT_GAMES_PATH, 'utf8').split(CHAT_GAMES_SEPARATOR).map(s => s.trim()).filter(Boolean)
+        : []
+);
+
+let chatGameBuffer = null;
+let chatGameFlushTimer = null;
+
+const flushChatGame = () => {
+    const buffer = chatGameBuffer;
+    chatGameBuffer = null;
+    if (!buffer || buffer.length === 0) return;
+    const block = buffer.join('\n').trim();
+    if (!block || loggedChatGames.has(block)) return;
+    loggedChatGames.add(block);
+    fs.appendFileSync(CHAT_GAMES_PATH, block + CHAT_GAMES_SEPARATOR);
+};
+
+const recordChatGameLine = (message) => {
+    if (message.includes('CHAT GAMES')) {
+        chatGameBuffer = [message];
+    } else if (chatGameBuffer) {
+        chatGameBuffer.push(message);
+    } else {
+        return;
+    }
+    if (chatGameFlushTimer) clearTimeout(chatGameFlushTimer);
+    chatGameFlushTimer = setTimeout(flushChatGame, CHAT_GAMES_FLUSH_DELAY_MS);
+};
+
 const RECONNECT_DELAY_MS = 5000;
 const QUICK_FAILURE_THRESHOLD_MS = 10000;
 const STALE_SESSION_RECONNECT_DELAY_MS = 40000;
@@ -250,6 +290,8 @@ function connect() {
     const HUD_MESSAGE_PATTERN = /^❤ \d+\/\d+ \| ★ \d+\/\d+ \| ⛨ \d+$/
 
     bot.on('messagestr', (message) => {
+        recordChatGameLine(message)
+
         const isHudMessage = HUD_MESSAGE_PATTERN.test(message)
         if (!isHudMessage || message !== lastHudMessage) {
             console.log('[CHAT]', message)
