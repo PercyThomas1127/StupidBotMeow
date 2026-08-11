@@ -2,8 +2,21 @@ const fs = require('fs');
 const path = require('path');
 
 const WORDS_PATH = path.join(__dirname, 'chatgame-words.json');
+const TRIVIA_PATH = path.join(__dirname, 'chatgame-trivia.json');
 const GAMES_PATH = path.join(__dirname, 'chatgames.txt');
 const SEPARATOR = '\n---\n';
+
+const normalizeTriviaQuestion = (question) => question.trim().toLowerCase();
+
+const loadTrivia = () => {
+    try {
+        return new Map(Object.entries(JSON.parse(fs.readFileSync(TRIVIA_PATH, 'utf8'))));
+    } catch {
+        return new Map();
+    }
+};
+
+const trivia = loadTrivia();
 
 const loadWords = () => {
     try {
@@ -62,9 +75,11 @@ const learnFromAnnouncement = (block) => {
 };
 
 const extractPrompt = (block) => {
-    // finds the "You have N seconds to <verb>: `value`" line, ignoring any
-    // unrelated noise lines swept into the block by the buffering window
-    const match = block.match(/seconds to ([a-z ]+): `([^`]+)`/i);
+    // finds the "You have N seconds to <verb>: `value`" prompt, ignoring any
+    // unrelated noise lines swept into the block by the buffering window.
+    // The backticked value sometimes sits on its own line below the verb
+    // line (e.g. trivia questions), so allow any whitespace between them.
+    const match = block.match(/seconds to ([a-z ]+):\s*`([^`]+)`/i);
     if (!match) return null;
     return { verb: match[1].trim().toLowerCase(), value: match[2] };
 };
@@ -196,6 +211,14 @@ const solve = (block) => {
     }
     if (verb.startsWith('fill in the word')) return findDictionaryMatch(value, 'fill');
     if (verb.startsWith('unscramble')) return findDictionaryMatch(value, 'unscramble');
+    if (verb.startsWith('answer')) {
+        // plain trivia question - not algorithmically solvable, only known
+        // if this exact question has been manually taught in
+        // chatgame-trivia.json (mirrors the "Answer: X" workflow for
+        // chatgames.txt, but keyed by question text so it works no matter
+        // how much other noise the buffering window sweeps in around it)
+        return trivia.get(normalizeTriviaQuestion(value)) || null;
+    }
     return null;
 };
 
