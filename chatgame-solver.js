@@ -211,6 +211,7 @@ const solve = (block) => {
     }
     if (verb.startsWith('fill in the word')) return findDictionaryMatch(value, 'fill');
     if (verb.startsWith('unscramble')) return findDictionaryMatch(value, 'unscramble');
+    if (verb.startsWith('unreverse')) return value.split('').reverse().join(''); // literally reversed
     if (verb.startsWith('answer')) {
         // plain trivia question - not algorithmically solvable, only known
         // if this exact question has been manually taught in
