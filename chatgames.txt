@@ -61,3 +61,9 @@ Answer: Earth
 [+] gracee
 Answer: Stone
 ---
+✓ ✯ CHAT GAMES ✯ ✓
+
+                  You have 20 seconds to answer:
+          `How many sides does a dice have? (number)`
+Answer: 6
+---
