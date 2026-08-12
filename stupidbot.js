@@ -17,7 +17,7 @@ const isFromOperator = (message) => OPERATORS.some(name => message.includes(name
 // flush the whole block to chatgames.txt - but only if we haven't already
 // logged that exact block before, so repeats of the same puzzle aren't logged.
 const CHAT_GAMES_PATH = path.join(__dirname, 'chatgames.txt');
-const CHAT_GAMES_FLUSH_DELAY_MS = 1500;
+const CHAT_GAMES_FLUSH_DELAY_MS = 900;
 const CHAT_GAMES_SEPARATOR = '\n---\n';
 
 const loggedChatGames = new Set(
@@ -37,8 +37,8 @@ let currentBot = null; // set in connect(); flushChatGame lives outside connect(
 const RESULT_ANNOUNCEMENT_MARKERS = ['have passed!', 'is now over!', 'correct answer was', 'and got a prize!'];
 const isResultAnnouncement = (block) => RESULT_ANNOUNCEMENT_MARKERS.some(marker => block.includes(marker));
 
-const CHAT_GAME_ANSWER_MIN_DELAY_MS = 1800;
-const CHAT_GAME_ANSWER_MAX_DELAY_MS = 3000;
+const CHAT_GAME_ANSWER_MIN_DELAY_MS = 1000;
+const CHAT_GAME_ANSWER_MAX_DELAY_MS = 1800;
 
 const flushChatGame = () => {
     const buffer = chatGameBuffer;
