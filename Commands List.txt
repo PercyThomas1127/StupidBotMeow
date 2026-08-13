@@ -30,8 +30,9 @@ Automatic (no chat trigger needed):
 - "CHAT GAMES" events: if the bot knows how to solve it (write-out/write-out-
   the-word puzzles, arithmetic "solve" puzzles, "solve for" equation systems,
   or fill-in-the-word/unscramble puzzles matching a word already learned in
-  chatgame-words.json), it answers in public chat after a short randomized
-  delay (~1.9-2.7s). Otherwise the puzzle is recorded in chatgames.txt (unanswered) for
+  chatgame-words.json), it answers in public chat as soon as the puzzle is
+  fully received (no artificial delay). Otherwise the puzzle is recorded in
+  chatgames.txt (unanswered) for
   manual solving later - add an "Answer: <value>" line under the question
   to teach it that exact puzzle. Winner/result announcements aren't logged
   as puzzles, but any word they reveal is learned automatically for solving

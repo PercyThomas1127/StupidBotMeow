@@ -37,9 +37,6 @@ let currentBot = null; // set in connect(); flushChatGame lives outside connect(
 const RESULT_ANNOUNCEMENT_MARKERS = ['have passed!', 'is now over!', 'correct answer was', 'and got a prize!'];
 const isResultAnnouncement = (block) => RESULT_ANNOUNCEMENT_MARKERS.some(marker => block.includes(marker));
 
-const CHAT_GAME_ANSWER_MIN_DELAY_MS = 1000;
-const CHAT_GAME_ANSWER_MAX_DELAY_MS = 1800;
-
 const flushChatGame = () => {
     const buffer = chatGameBuffer;
     chatGameBuffer = null;
@@ -55,8 +52,7 @@ const flushChatGame = () => {
 
     const answer = chatGameSolver.solve(block);
     if (answer != null && currentBot) {
-        const delay = CHAT_GAME_ANSWER_MIN_DELAY_MS + Math.random() * (CHAT_GAME_ANSWER_MAX_DELAY_MS - CHAT_GAME_ANSWER_MIN_DELAY_MS);
-        setTimeout(() => currentBot.chat(answer), delay);
+        currentBot.chat(answer);
     } else {
         fs.appendFileSync(CHAT_GAMES_PATH, block + CHAT_GAMES_SEPARATOR);
     }
