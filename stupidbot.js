@@ -8,7 +8,7 @@ const log = (label, detail) => {
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${label} ${JSON.stringify(detail)}\n`);
 };
 
-const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04'];
+const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04', 'AustrichMC'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
 // Chat Games are multi-line broadcast puzzles (header, blank lines, equations,
