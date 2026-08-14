@@ -1,4 +1,5 @@
 {
-  "host": "play.skeletonmc.com",
-  "port": 25565
+  "host": "ggsmp.net",
+  "port": 25565,
+  "hubNpcName": "GG SMP"
 }

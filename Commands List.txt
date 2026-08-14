@@ -46,7 +46,15 @@ Automatic (no chat trigger needed):
   hotbar (a server limitation, not a choice).
 - On first spawn, registers via /register smolbrain smolbrain if this is a
   server the bot hasn't joined before (tracked in registered-hosts.json),
-  otherwise logs in via /login smolbrain as usual.
+  waits 1.5s, then also logs in via /login smolbrain (some auth plugins
+  don't auto-login right after registering). Known servers just log in
+  directly as usual.
+- If server-config.json sets "hubNpcName" for the current server (e.g.
+  ggsmp.net's lobby requires right-clicking an NPC named "GG SMP" to enter
+  the main server), the bot searches for an entity whose name contains that
+  text after logging in and right-clicks it, retrying every 2s for up to
+  20s in case the NPC hasn't loaded yet. Leave hubNpcName blank/unset for
+  servers that don't need this (e.g. play.skeletonmc.com).
 - "CHAT GAMES" events: DISABLED BY DEFAULT as of 2026-08-14 - the account
   was banned ("afk farming chat games") for this exact behavior. Use
   "Meow, enable chat games." (or the control panel) to turn it back on at

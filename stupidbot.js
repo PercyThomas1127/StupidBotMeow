@@ -17,7 +17,7 @@ const isFromOperator = (message) => OPERATORS.some(name => message.includes(name
 // server to connect to - stored in server-config.json so the control panel
 // can change it before a launch without editing code
 const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
-const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565 };
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, hubNpcName: null };
 const loadServerConfig = () => {
     try {
         return { ...DEFAULT_SERVER_CONFIG, ...JSON.parse(fs.readFileSync(SERVER_CONFIG_PATH, 'utf8')) };
@@ -25,7 +25,10 @@ const loadServerConfig = () => {
         return DEFAULT_SERVER_CONFIG;
     }
 };
-const { host: HOST, port: PORT } = loadServerConfig();
+// hubNpcName: some networks (e.g. ggsmp.net) require right-clicking a lobby
+// NPC after login to actually enter the main server - optional, only acted
+// on when the current server-config.json sets it
+const { host: HOST, port: PORT, hubNpcName: HUB_NPC_NAME } = loadServerConfig();
 
 // tracks which hosts we've already registered an account on, so a fresh
 // server (e.g. if HOST is ever changed) gets /register instead of /login
@@ -347,13 +350,47 @@ function connect() {
         bot.chat(`Build complete: ${placed} placed, ${skipped} skipped.`)
     }
 
+    // some networks (e.g. ggsmp.net) put you in a lobby after login and
+    // require right-clicking an NPC to actually enter the main server -
+    // only used when server-config.json sets hubNpcName for this host
+    const HUB_NPC_MAX_ATTEMPTS = 10
+    const HUB_NPC_RETRY_DELAY_MS = 2000
+    const entityNameMatches = (entity, needle) => {
+        const candidates = [entity.username, entity.displayName && entity.displayName.toString(), entity.name]
+            .filter(Boolean)
+        return candidates.some(name => name.toLowerCase().includes(needle.toLowerCase()))
+    }
+    const findAndClickHubNpc = (attempt = 1) => {
+        const npc = Object.values(bot.entities).find(e => entityNameMatches(e, HUB_NPC_NAME))
+        if (npc) {
+            log('HUB_NPC_FOUND', { hubNpcName: HUB_NPC_NAME, entityName: npc.username || npc.name })
+            bot.activateEntity(npc).catch(err => log('HUB_NPC_ERROR', err.message))
+            return
+        }
+        if (attempt >= HUB_NPC_MAX_ATTEMPTS) {
+            log('HUB_NPC_NOT_FOUND', { hubNpcName: HUB_NPC_NAME })
+            return
+        }
+        setTimeout(() => findAndClickHubNpc(attempt + 1), HUB_NPC_RETRY_DELAY_MS)
+    }
+    const enterHubIfConfigured = () => {
+        if (HUB_NPC_NAME) setTimeout(() => findAndClickHubNpc(), HUB_NPC_RETRY_DELAY_MS)
+    }
+
     bot.once('spawn', () => {
         console.log('Meow')
         if (registeredHosts.has(HOST)) {
             bot.chat('/login smolbrain')
+            enterHubIfConfigured()
         } else {
+            // brand new server: register, then log in shortly after (some
+            // auth plugins don't auto-login on successful registration)
             bot.chat('/register smolbrain smolbrain')
             markHostRegistered(HOST)
+            setTimeout(() => {
+                bot.chat('/login smolbrain')
+                enterHubIfConfigured()
+            }, 1500)
         }
         reportStatus()
         bot.on('health', reportStatus)

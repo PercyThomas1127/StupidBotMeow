@@ -94,7 +94,8 @@ app.post('/api/server-config', (req, res) => {
     const host = (req.body.host || '').trim();
     if (!host) return res.status(400).json({ error: 'host is required' });
     const port = Number(req.body.port) || DEFAULT_SERVER_CONFIG.port;
-    const config = { host, port };
+    const hubNpcName = (req.body.hubNpcName || '').trim() || null;
+    const config = { host, port, hubNpcName };
     fs.writeFileSync(SERVER_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
     res.json(config);
 });
