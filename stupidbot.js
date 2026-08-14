@@ -29,7 +29,10 @@ const loggedChatGames = new Set(
 let chatGameBuffer = null;
 let chatGameFlushTimer = null;
 let currentBot = null; // set in connect(); flushChatGame lives outside connect() but needs to chat
-let chatGamesEnabled = true;
+// disabled by default: the account was banned ("afk farming chat games") for
+// this exact behavior - re-enable manually via "Meow, enable chat games."
+// or the control panel once you're ready to risk it again
+let chatGamesEnabled = false;
 
 // the "CHAT GAMES" header is reused for the round's result/winner
 // announcement too (e.g. "20s have passed! ... The correct answer was...",
