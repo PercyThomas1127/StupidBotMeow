@@ -7,6 +7,8 @@ const WebSocket = require('ws');
 
 const BOT_SCRIPT = path.join(__dirname, '..', 'stupidbot.js');
 const LOG_PATH = path.join(__dirname, '..', 'errors.txt');
+const SERVER_CONFIG_PATH = path.join(__dirname, '..', 'server-config.json');
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565 };
 const PORT = 4000;
 
 const app = express();
@@ -78,6 +80,23 @@ app.post('/api/command', (req, res) => {
 
 app.get('/api/log', (req, res) => {
     fs.readFile(LOG_PATH, 'utf8', (err, data) => res.send(err ? '' : data));
+});
+
+// the server the bot connects to on its next launch - only takes effect on
+// (re)launch, since the running bot process already read this at startup
+app.get('/api/server-config', (req, res) => {
+    fs.readFile(SERVER_CONFIG_PATH, 'utf8', (err, data) => {
+        res.json(err ? DEFAULT_SERVER_CONFIG : JSON.parse(data));
+    });
+});
+
+app.post('/api/server-config', (req, res) => {
+    const host = (req.body.host || '').trim();
+    if (!host) return res.status(400).json({ error: 'host is required' });
+    const port = Number(req.body.port) || DEFAULT_SERVER_CONFIG.port;
+    const config = { host, port };
+    fs.writeFileSync(SERVER_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+    res.json(config);
 });
 
 wss.on('connection', (ws) => {

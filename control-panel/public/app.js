@@ -4,6 +4,8 @@ const logView = document.getElementById('log-view');
 const launchBtn = document.getElementById('launch-btn');
 const shutdownBtn = document.getElementById('shutdown-btn');
 const chatGamesToggle = document.getElementById('chat-games-toggle');
+const serverHostInput = document.getElementById('server-host-input');
+const serverPortInput = document.getElementById('server-port-input');
 
 const appendAndScroll = (el, text) => {
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
@@ -37,6 +39,11 @@ fetch('/api/log').then((r) => r.text()).then((text) => {
     logView.scrollTop = logView.scrollHeight;
 });
 
+fetch('/api/server-config').then((r) => r.json()).then((config) => {
+    serverHostInput.value = config.host;
+    serverPortInput.value = config.port;
+});
+
 const connectSocket = () => {
     const ws = new WebSocket(`ws://${location.host}`);
     ws.onmessage = (event) => {
@@ -51,6 +58,19 @@ connectSocket();
 
 launchBtn.addEventListener('click', () => fetch('/api/launch', { method: 'POST' }));
 shutdownBtn.addEventListener('click', () => fetch('/api/shutdown', { method: 'POST' }));
+
+document.getElementById('save-server-btn').addEventListener('click', () => {
+    const host = serverHostInput.value.trim();
+    if (!host) return;
+    fetch('/api/server-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host, port: serverPortInput.value }),
+    }).then((r) => r.json()).then((config) => {
+        serverHostInput.value = config.host;
+        serverPortInput.value = config.port;
+    });
+});
 
 document.querySelectorAll('.btn[data-command]').forEach((btn) => {
     btn.addEventListener('click', () => {

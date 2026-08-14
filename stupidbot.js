@@ -11,8 +11,18 @@ const log = (label, detail) => {
 const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04', 'AustrichMC'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
-const HOST = 'play.skeletonmc.com';
-const PORT = 25565;
+// server to connect to - stored in server-config.json so the control panel
+// can change it before a launch without editing code
+const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565 };
+const loadServerConfig = () => {
+    try {
+        return { ...DEFAULT_SERVER_CONFIG, ...JSON.parse(fs.readFileSync(SERVER_CONFIG_PATH, 'utf8')) };
+    } catch {
+        return DEFAULT_SERVER_CONFIG;
+    }
+};
+const { host: HOST, port: PORT } = loadServerConfig();
 
 // tracks which hosts we've already registered an account on, so a fresh
 // server (e.g. if HOST is ever changed) gets /register instead of /login

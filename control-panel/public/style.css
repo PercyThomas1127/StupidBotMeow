@@ -75,6 +75,11 @@ h1 {
 
 .do-command input::placeholder { color: #d693ab; }
 
+#server-port-input {
+    flex: 0 0 90px;
+    min-width: 0;
+}
+
 .switch-label {
     display: flex;
     align-items: center;
