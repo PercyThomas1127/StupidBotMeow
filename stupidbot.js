@@ -28,7 +28,7 @@ console.warn = (...args) => {
 // server to connect to - stored in server-config.json so the control panel
 // can change it before a launch without editing code
 const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
-const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: '1.16.5', hubNpcName: null };
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: null, hubNpcName: null };
 const loadServerConfig = () => {
     try {
         return { ...DEFAULT_SERVER_CONFIG, ...JSON.parse(fs.readFileSync(SERVER_CONFIG_PATH, 'utf8')) };
@@ -36,13 +36,24 @@ const loadServerConfig = () => {
         return DEFAULT_SERVER_CONFIG;
     }
 };
+// hosts with known per-version bugs get a hardcoded fallback so they keep
+// working even if server-config.json doesn't pin a version explicitly -
+// play.skeletonmc.com's actual backend is 1.21.11, but that version has
+// broken item-component parsing and forces signed chat there, so it's
+// pinned to the older 1.16.5 protocol to dodge both bugs
+const KNOWN_HOST_VERSION_OVERRIDES = { 'play.skeletonmc.com': '1.16.5' };
 // hubNpcName: some networks (e.g. ggsmp.net) require right-clicking a lobby
 // NPC after login to actually enter the main server - optional, only acted
 // on when the current server-config.json sets it.
-// version: 1.16.5 was pinned to dodge play.skeletonmc.com's specific bugs
-// (broken item-component parsing, forced signed chat) - a different server
-// may need a different (or matching) version instead, hence configurable
-const { host: HOST, port: PORT, username: USERNAME, version: VERSION, hubNpcName: HUB_NPC_NAME } = loadServerConfig();
+// version: leave unset (or blank in the control panel) to have mineflayer
+// gather this itself - passing `false` makes minecraft-protocol ping the
+// server first and auto-detect its protocol version before connecting
+// (this is what fixed ggsmp.net's "chunk failed to load" spam, which was
+// caused by being pinned to a version that didn't match its real backend).
+// Only override this per-server if that server's real version turns out to
+// have its own bugs, the way play.skeletonmc.com does.
+const { host: HOST, port: PORT, username: USERNAME, version: CONFIGURED_VERSION, hubNpcName: HUB_NPC_NAME } = loadServerConfig();
+const VERSION = CONFIGURED_VERSION || KNOWN_HOST_VERSION_OVERRIDES[HOST] || false;
 
 // tracks which host+username combos we've already registered, so a fresh
 // server (or a different account on a known server) gets /register instead

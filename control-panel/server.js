@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const BOT_SCRIPT = path.join(__dirname, '..', 'stupidbot.js');
 const LOG_PATH = path.join(__dirname, '..', 'errors.txt');
 const SERVER_CONFIG_PATH = path.join(__dirname, '..', 'server-config.json');
-const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: '1.16.5', hubNpcName: null };
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: null, hubNpcName: null };
 const PORT = 4000;
 
 const app = express();
