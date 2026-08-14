@@ -6,6 +6,8 @@ const shutdownBtn = document.getElementById('shutdown-btn');
 const chatGamesToggle = document.getElementById('chat-games-toggle');
 const serverHostInput = document.getElementById('server-host-input');
 const serverPortInput = document.getElementById('server-port-input');
+const serverUsernameInput = document.getElementById('server-username-input');
+const serverVersionInput = document.getElementById('server-version-input');
 const serverHubNpcInput = document.getElementById('server-hub-npc-input');
 
 const appendAndScroll = (el, text) => {
@@ -43,6 +45,8 @@ fetch('/api/log').then((r) => r.text()).then((text) => {
 fetch('/api/server-config').then((r) => r.json()).then((config) => {
     serverHostInput.value = config.host;
     serverPortInput.value = config.port;
+    serverUsernameInput.value = config.username || '';
+    serverVersionInput.value = config.version || '';
     serverHubNpcInput.value = config.hubNpcName || '';
 });
 
@@ -67,10 +71,18 @@ document.getElementById('save-server-btn').addEventListener('click', () => {
     fetch('/api/server-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host, port: serverPortInput.value, hubNpcName: serverHubNpcInput.value }),
+        body: JSON.stringify({
+            host,
+            port: serverPortInput.value,
+            username: serverUsernameInput.value,
+            version: serverVersionInput.value,
+            hubNpcName: serverHubNpcInput.value,
+        }),
     }).then((r) => r.json()).then((config) => {
         serverHostInput.value = config.host;
         serverPortInput.value = config.port;
+        serverUsernameInput.value = config.username || '';
+        serverVersionInput.value = config.version || '';
         serverHubNpcInput.value = config.hubNpcName || '';
     });
 });

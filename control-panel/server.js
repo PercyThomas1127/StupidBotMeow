@@ -8,7 +8,7 @@ const WebSocket = require('ws');
 const BOT_SCRIPT = path.join(__dirname, '..', 'stupidbot.js');
 const LOG_PATH = path.join(__dirname, '..', 'errors.txt');
 const SERVER_CONFIG_PATH = path.join(__dirname, '..', 'server-config.json');
-const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565 };
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: '1.16.5', hubNpcName: null };
 const PORT = 4000;
 
 const app = express();
@@ -94,8 +94,10 @@ app.post('/api/server-config', (req, res) => {
     const host = (req.body.host || '').trim();
     if (!host) return res.status(400).json({ error: 'host is required' });
     const port = Number(req.body.port) || DEFAULT_SERVER_CONFIG.port;
+    const username = (req.body.username || '').trim() || DEFAULT_SERVER_CONFIG.username;
+    const version = (req.body.version || '').trim() || DEFAULT_SERVER_CONFIG.version;
     const hubNpcName = (req.body.hubNpcName || '').trim() || null;
-    const config = { host, port, hubNpcName };
+    const config = { host, port, username, version, hubNpcName };
     fs.writeFileSync(SERVER_CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
     res.json(config);
 });

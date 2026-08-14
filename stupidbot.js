@@ -17,7 +17,7 @@ const isFromOperator = (message) => OPERATORS.some(name => message.includes(name
 // server to connect to - stored in server-config.json so the control panel
 // can change it before a launch without editing code
 const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
-const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, hubNpcName: null };
+const DEFAULT_SERVER_CONFIG = { host: 'play.skeletonmc.com', port: 25565, username: 'MeowMeowNya', version: '1.16.5', hubNpcName: null };
 const loadServerConfig = () => {
     try {
         return { ...DEFAULT_SERVER_CONFIG, ...JSON.parse(fs.readFileSync(SERVER_CONFIG_PATH, 'utf8')) };
@@ -27,20 +27,24 @@ const loadServerConfig = () => {
 };
 // hubNpcName: some networks (e.g. ggsmp.net) require right-clicking a lobby
 // NPC after login to actually enter the main server - optional, only acted
-// on when the current server-config.json sets it
-const { host: HOST, port: PORT, hubNpcName: HUB_NPC_NAME } = loadServerConfig();
+// on when the current server-config.json sets it.
+// version: 1.16.5 was pinned to dodge play.skeletonmc.com's specific bugs
+// (broken item-component parsing, forced signed chat) - a different server
+// may need a different (or matching) version instead, hence configurable
+const { host: HOST, port: PORT, username: USERNAME, version: VERSION, hubNpcName: HUB_NPC_NAME } = loadServerConfig();
 
-// tracks which hosts we've already registered an account on, so a fresh
-// server (e.g. if HOST is ever changed) gets /register instead of /login
-// on its first join, while known hosts keep using /login as normal
+// tracks which host+username combos we've already registered, so a fresh
+// server (or a different account on a known server) gets /register instead
+// of /login on its first join, while known combos keep using /login
 const REGISTERED_HOSTS_PATH = path.join(__dirname, 'registered-hosts.json');
 const registeredHosts = new Set(
     fs.existsSync(REGISTERED_HOSTS_PATH)
         ? JSON.parse(fs.readFileSync(REGISTERED_HOSTS_PATH, 'utf8'))
         : []
 );
-const markHostRegistered = (host) => {
-    registeredHosts.add(host);
+const hostAccountKey = (host, username) => `${host}:${username}`;
+const markHostRegistered = (host, username) => {
+    registeredHosts.add(hostAccountKey(host, username));
     fs.writeFileSync(REGISTERED_HOSTS_PATH, JSON.stringify([...registeredHosts].sort(), null, 2) + '\n');
 };
 
@@ -133,8 +137,8 @@ function connect() {
     const bot = mineflayer.createBot({
         host: HOST,
         port: PORT,
-        username: 'MeowMeowNya',
-        version: '1.16.5',
+        username: USERNAME,
+        version: VERSION,
     });
     currentBot = bot
     bot.loadPlugin(pathfinder)
@@ -379,14 +383,15 @@ function connect() {
 
     bot.once('spawn', () => {
         console.log('Meow')
-        if (registeredHosts.has(HOST)) {
+        if (registeredHosts.has(hostAccountKey(HOST, USERNAME))) {
             bot.chat('/login smolbrain')
             enterHubIfConfigured()
         } else {
-            // brand new server: register, then log in shortly after (some
-            // auth plugins don't auto-login on successful registration)
+            // brand new server (or new account on a known server): register,
+            // then log in shortly after (some auth plugins don't auto-login
+            // on successful registration)
             bot.chat('/register smolbrain smolbrain')
-            markHostRegistered(HOST)
+            markHostRegistered(HOST, USERNAME)
             setTimeout(() => {
                 bot.chat('/login smolbrain')
                 enterHubIfConfigured()
@@ -485,6 +490,26 @@ function connect() {
         stopWalking: () => bot.pathfinder.setGoal(null),
         build: (payload) => buildSchematic(payload),
         stopBuilding: () => { buildCancelled = true },
+        listEntities: () => {
+            const entities = Object.values(bot.entities)
+                .filter(e => e !== bot.entity && e.position)
+                .map(e => ({
+                    type: e.type,
+                    name: e.name || null,
+                    username: e.username || null,
+                    displayName: e.displayName ? e.displayName.toString() : null,
+                    position: { x: Math.round(e.position.x), y: Math.round(e.position.y), z: Math.round(e.position.z) },
+                    distance: bot.entity ? +e.position.distanceTo(bot.entity.position).toFixed(1) : null,
+                }))
+                .sort((a, b) => (a.distance || 0) - (b.distance || 0))
+            log('ENTITY_REPORT', { count: entities.length, entities })
+            console.log(`[ENTITIES] ${entities.length} nearby:`)
+            entities.forEach(e => {
+                const label = e.displayName || e.username || e.name || '?'
+                console.log(`  [${e.type}] "${label}" @ (${e.position.x},${e.position.y},${e.position.z}) dist=${e.distance}`)
+            })
+            bot.chat(`Found ${entities.length} nearby entities, check console for details.`)
+        },
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
@@ -538,6 +563,8 @@ function connect() {
             actions.disableChatGames()
         } else if (isFromOperator(message) && message.includes('Meow, toggle chat games.')) {
             actions.toggleChatGames()
+        } else if (isFromOperator(message) && message.includes('Meow, list entities.')) {
+            actions.listEntities()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) actions.doCommand(match[1])

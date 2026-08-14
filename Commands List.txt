@@ -38,6 +38,11 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    builds it with that corner as the anchor
                                    (walks to each block, equips the matching
                                    item, and places it - see notes below)
+- "Meow, list entities."       -> bot lists every nearby entity (type, name,
+                                   display name, position, distance) to the
+                                   console/log and says how many it found -
+                                   useful for finding the exact name of a
+                                   hub NPC on a new server
 
 Automatic (no chat trigger needed):
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
