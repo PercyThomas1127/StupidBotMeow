@@ -34,10 +34,11 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    re-enabled)
 - "Meow, toggle chat games."   -> flips the chat games solver on/off from
                                    whatever it currently is
-- "Meow, build <name> at <x> <y> <z>." -> loads schematics/<name>.schem and
-                                   builds it with that corner as the anchor
-                                   (walks to each block, equips the matching
-                                   item, and places it - see notes below)
+- "Meow, build <name> at <x> <y> <z>." -> loads schematics/<name>.schem (or
+                                   <name>.litematic) and builds it with that
+                                   corner as the anchor (walks to each block,
+                                   equips the matching item, and places it -
+                                   see notes below)
 - "Meow, list entities."       -> bot lists every nearby entity (type, name,
                                    display name, position, distance) to the
                                    console/log and says how many it found -
@@ -90,7 +91,8 @@ Automatic (no chat trigger needed):
   rounds using that same word.
 
 Schematic builder notes/limitations (schematic-builder.js):
-- Drop .schem files (Sponge or MCEdit format) in schematics/.
+- Drop .schem files (Sponge or MCEdit format) or .litematic files
+  (Litematica mod format) in schematics/.
 - Only *places* blocks - never breaks/clears existing terrain, so pick an
   anchor with clear space, or expect leftover terrain poking through.
 - Skips any block it doesn't already have in its inventory (counts as
