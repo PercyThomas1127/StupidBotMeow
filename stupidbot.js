@@ -395,16 +395,22 @@ function connect() {
     // armor_stand (these networks float NPC nametag/hologram text on stacked
     // armor stands just above the NPC's head).
     const looksLikeObfuscatedNpc = (entity) => entity.type === 'player' && typeof entity.username === 'string' && /§/.test(entity.username)
+    // "armor_stand" was what this showed up as under the wrong protocol
+    // version (see version auto-detect fix) - at the correct version it's
+    // actually a "text_display" hologram entity, but both are kept here in
+    // case a differently-versioned server still uses classic armor stands
+    const looksLikeHologram = (entity) => entity.position && (entity.name === 'armor_stand' || entity.name === 'text_display')
     const findObfuscatedNpc = (entities) => {
         const candidates = entities.filter(looksLikeObfuscatedNpc)
-        const armorStands = entities.filter(e => e.name === 'armor_stand' && e.position)
-        if (!armorStands.length) return candidates[0]
+        const holograms = entities.filter(looksLikeHologram)
+        if (!holograms.length) return candidates[0]
         return candidates.sort((a, b) => {
-            const distA = Math.min(...armorStands.map(s => s.position.distanceTo(a.position)))
-            const distB = Math.min(...armorStands.map(s => s.position.distanceTo(b.position)))
+            const distA = Math.min(...holograms.map(s => s.position.distanceTo(a.position)))
+            const distB = Math.min(...holograms.map(s => s.position.distanceTo(b.position)))
             return distA - distB
         })[0]
     }
+    const HUB_NPC_INTERACT_RANGE = 2
     const findAndClickHubNpc = (attempt = 1) => {
         const entities = Object.values(bot.entities)
         let npc = entities.find(e => entityNameMatches(e, HUB_NPC_NAME))
@@ -414,8 +420,15 @@ function connect() {
             matchType = 'obfuscated-name-heuristic'
         }
         if (npc) {
-            log('HUB_NPC_FOUND', { hubNpcName: HUB_NPC_NAME, entityName: npc.username || npc.name, matchType })
-            bot.activateEntity(npc).catch(err => log('HUB_NPC_ERROR', err.message))
+            const distance = npc.position.distanceTo(bot.entity.position)
+            log('HUB_NPC_FOUND', { hubNpcName: HUB_NPC_NAME, entityName: npc.username || npc.name, matchType, distance })
+            // activateEntity sends an interact packet regardless of range, but
+            // anti-cheat on these networks silently drops it if we're too far
+            // away (this is why earlier attempts logged FOUND but never
+            // actually entered the main server) - walk within range first
+            bot.pathfinder.goto(new goals.GoalNear(npc.position.x, npc.position.y, npc.position.z, HUB_NPC_INTERACT_RANGE))
+                .then(() => bot.activateEntity(npc))
+                .catch(err => log('HUB_NPC_ERROR', err.message))
             return
         }
         if (attempt >= HUB_NPC_MAX_ATTEMPTS) {
