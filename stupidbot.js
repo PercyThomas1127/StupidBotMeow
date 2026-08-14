@@ -14,6 +14,17 @@ const log = (label, detail) => {
 const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04', 'AustrichMC'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
+// mineflayer logs this whenever a map_chunk packet fails to parse into a
+// usable column (real data loss - blockAt/pathfinding/building near that
+// chunk can be wrong) - it's not cosmetic, but it's noisy, so we silence the
+// console spam here rather than passing createBot's blanket hideErrors flag
+// (which would also swallow unrelated, more important warnings/errors)
+const originalConsoleWarn = console.warn.bind(console);
+console.warn = (...args) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('Ignoring block entities as chunk failed to load')) return;
+    originalConsoleWarn(...args);
+};
+
 // server to connect to - stored in server-config.json so the control panel
 // can change it before a launch without editing code
 const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
