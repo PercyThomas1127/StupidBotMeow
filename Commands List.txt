@@ -4,6 +4,11 @@ stupidbot Commands List
 Anyone can say these in chat:
 - "Meow, tp to me."          -> bot sends /tpa VOlcarona_Alt
 - "Meow, tp me to you."      -> bot sends /tpahere VOlcarona_Alt
+- "Meow, walk to me."        -> bot pathfinds (walks, no teleport) to
+                                 VOlcarona_Alt's current position, if it can
+                                 see them (says "Can't see VOlcarona_Alt" if
+                                 not loaded/nearby)
+- "Meow, stop."              -> bot cancels its current pathfinding goal
 
 VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
 - "Meow, enable totem mode."   -> bot crouches 3 times, equips a Totem of

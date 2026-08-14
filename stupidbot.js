@@ -1,4 +1,5 @@
 const mineflayer = require ('mineflayer');
+const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
 const fs = require('fs');
 const path = require('path');
 const chatGameSolver = require('./chatgame-solver');
@@ -131,6 +132,7 @@ function connect() {
         version: '1.16.5',
     });
     currentBot = bot
+    bot.loadPlugin(pathfinder)
 
     let totemModeActive = false
 
@@ -272,6 +274,8 @@ function connect() {
         reportStatus()
         bot.on('health', reportStatus)
 
+        bot.pathfinder.setMovements(new Movements(bot))
+
         bot.inventory.on('updateSlot', (slot, oldItem, newItem) => {
             if (totemModeActive && slot === bot.getEquipmentDestSlot('off-hand')) {
                 const hadTotem = oldItem && oldItem.name === 'totem_of_undying'
@@ -348,6 +352,16 @@ function connect() {
             bot.chat(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },
+        walkToMe: () => {
+            const target = bot.players['VOlcarona_Alt'] && bot.players['VOlcarona_Alt'].entity
+            if (!target) {
+                bot.chat("Can't see VOlcarona_Alt")
+                return
+            }
+            const { x, y, z } = target.position
+            bot.pathfinder.setGoal(new goals.GoalNear(x, y, z, 1))
+        },
+        stopWalking: () => bot.pathfinder.setGoal(null),
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
@@ -375,6 +389,10 @@ function connect() {
             actions.tpToMe()
         } else if (message.includes('Meow, tp me to you.')) {
             actions.tpMeToYou()
+        } else if (message.includes('Meow, walk to me.')) {
+            actions.walkToMe()
+        } else if (message.includes('Meow, stop.')) {
+            actions.stopWalking()
         } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
             actions.enableTotemMode()
         } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {
