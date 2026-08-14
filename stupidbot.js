@@ -339,6 +339,7 @@ function connect() {
 
         let placed = 0
         let skipped = 0
+        let announcedOutOfMaterials = false
         for (const step of plan) {
             if (buildCancelled) {
                 bot.chat(`Build cancelled (${placed} placed, ${skipped} skipped).`)
@@ -354,6 +355,10 @@ function connect() {
 
             const item = bot.inventory.items().find(i => i.name === step.blockName)
             if (!item) {
+                if (!announcedOutOfMaterials) {
+                    bot.chat('Oops I ran out of materials')
+                    announcedOutOfMaterials = true
+                }
                 skipped++
                 continue
             }
