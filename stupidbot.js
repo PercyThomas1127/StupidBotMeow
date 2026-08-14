@@ -375,10 +375,35 @@ function connect() {
             .filter(Boolean)
         return candidates.some(name => name.toLowerCase().includes(needle.toLowerCase()))
     }
+    // ggsmp.net's hub NPC (confirmed via "Meow, list entities.") is a fake
+    // player entity whose username is scrambled with obfuscated formatting
+    // codes (e.g. "§o§d§l§f§6§8§k§8") rather than literal text, so a plain
+    // substring match on hubNpcName never finds it - real players never have
+    // "§" in their username, so this is a reliable heuristic fallback. When
+    // several such entities exist, prefer whichever sits closest to an
+    // armor_stand (these networks float NPC nametag/hologram text on stacked
+    // armor stands just above the NPC's head).
+    const looksLikeObfuscatedNpc = (entity) => entity.type === 'player' && typeof entity.username === 'string' && /§/.test(entity.username)
+    const findObfuscatedNpc = (entities) => {
+        const candidates = entities.filter(looksLikeObfuscatedNpc)
+        const armorStands = entities.filter(e => e.name === 'armor_stand' && e.position)
+        if (!armorStands.length) return candidates[0]
+        return candidates.sort((a, b) => {
+            const distA = Math.min(...armorStands.map(s => s.position.distanceTo(a.position)))
+            const distB = Math.min(...armorStands.map(s => s.position.distanceTo(b.position)))
+            return distA - distB
+        })[0]
+    }
     const findAndClickHubNpc = (attempt = 1) => {
-        const npc = Object.values(bot.entities).find(e => entityNameMatches(e, HUB_NPC_NAME))
+        const entities = Object.values(bot.entities)
+        let npc = entities.find(e => entityNameMatches(e, HUB_NPC_NAME))
+        let matchType = 'name'
+        if (!npc) {
+            npc = findObfuscatedNpc(entities)
+            matchType = 'obfuscated-name-heuristic'
+        }
         if (npc) {
-            log('HUB_NPC_FOUND', { hubNpcName: HUB_NPC_NAME, entityName: npc.username || npc.name })
+            log('HUB_NPC_FOUND', { hubNpcName: HUB_NPC_NAME, entityName: npc.username || npc.name, matchType })
             bot.activateEntity(npc).catch(err => log('HUB_NPC_ERROR', err.message))
             return
         }

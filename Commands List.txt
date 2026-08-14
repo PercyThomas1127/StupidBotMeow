@@ -60,6 +60,12 @@ Automatic (no chat trigger needed):
   text after logging in and right-clicks it, retrying every 2s for up to
   20s in case the NPC hasn't loaded yet. Leave hubNpcName blank/unset for
   servers that don't need this (e.g. play.skeletonmc.com).
+  If no entity's name literally matches (e.g. ggsmp.net's hub NPC uses a
+  scrambled/obfuscated (section-sign "§") fake player username instead of
+  literal text), it falls back to targeting whichever "§"-named fake player
+  entity sits closest to a nearby armor_stand (these are usually the floating
+  nametag/hologram above the NPC's head) - use "Meow, list entities." to spot
+  candidates if this heuristic ever picks the wrong one.
 - "CHAT GAMES" events: DISABLED BY DEFAULT as of 2026-08-14 - the account
   was banned ("afk farming chat games") for this exact behavior. Use
   "Meow, enable chat games." (or the control panel) to turn it back on at
