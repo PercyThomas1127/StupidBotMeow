@@ -430,6 +430,7 @@ function connect() {
 
     bot.once('spawn', () => {
         console.log('Meow')
+        console.log('[VERSION]', bot.version, 'protocol', bot.protocolVersion, 'configured', VERSION)
         if (registeredHosts.has(hostAccountKey(HOST, USERNAME))) {
             bot.chat('/login smolbrain')
             enterHubIfConfigured()
