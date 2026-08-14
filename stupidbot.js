@@ -29,6 +29,7 @@ const loggedChatGames = new Set(
 let chatGameBuffer = null;
 let chatGameFlushTimer = null;
 let currentBot = null; // set in connect(); flushChatGame lives outside connect() but needs to chat
+let chatGamesEnabled = true;
 
 // the "CHAT GAMES" header is reused for the round's result/winner
 // announcement too (e.g. "20s have passed! ... The correct answer was...",
@@ -59,6 +60,7 @@ const flushChatGame = () => {
 };
 
 const recordChatGameLine = (message) => {
+    if (!chatGamesEnabled) return;
     if (message.includes('CHAT GAMES')) {
         chatGameBuffer = [message];
     } else if (chatGameBuffer) {
@@ -268,7 +270,7 @@ function connect() {
         if (!process.send) return
         process.send({
             type: 'status',
-            data: { connected: !!bot.entity, health: bot.health, totemModeActive }
+            data: { connected: !!bot.entity, health: bot.health, totemModeActive, chatGamesEnabled }
         })
     }
 
@@ -295,6 +297,16 @@ function connect() {
         },
         say: (payload) => {
             if (payload) bot.chat(payload.trim())
+        },
+        enableChatGames: () => {
+            chatGamesEnabled = true
+            bot.chat('Chat game solver enabled.')
+            reportStatus()
+        },
+        disableChatGames: () => {
+            chatGamesEnabled = false
+            bot.chat('Chat game solver disabled.')
+            reportStatus()
         },
     }
 
@@ -334,6 +346,10 @@ function connect() {
         } else if (isFromOperator(message) && message.includes('Meow, say ')) {
             const match = message.match(/Meow, say (.+)/)
             if (match) actions.say(match[1])
+        } else if (isFromOperator(message) && message.includes('Meow, enable chat games.')) {
+            actions.enableChatGames()
+        } else if (isFromOperator(message) && message.includes('Meow, disable chat games.')) {
+            actions.disableChatGames()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) actions.doCommand(match[1])

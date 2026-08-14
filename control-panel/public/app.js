@@ -23,7 +23,8 @@ const setStatus = (status) => {
     } else {
         const health = status.health != null ? ` (health ${status.health})` : '';
         const totem = status.totemModeActive ? ' | totem mode on' : '';
-        statusEl.textContent = `online${health}${totem}`;
+        const chatGames = status.chatGamesEnabled === false ? ' | chat games off' : '';
+        statusEl.textContent = `online${health}${totem}${chatGames}`;
         statusEl.className = 'status status-online';
     }
 };

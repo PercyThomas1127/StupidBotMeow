@@ -21,6 +21,12 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
 - "Meow, drop item."           -> bot drops whatever it's currently holding
 - "Meow, offhand."             -> bot swaps whatever it's currently holding
                                    into its offhand
+- "Meow, enable chat games."   -> bot says "Chat game solver enabled." and
+                                   resumes detecting/solving Chat Games
+- "Meow, disable chat games."  -> bot says "Chat game solver disabled." and
+                                   stops detecting/solving Chat Games entirely
+                                   (won't answer or record new puzzles until
+                                   re-enabled)
 
 Automatic (no chat trigger needed):
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
