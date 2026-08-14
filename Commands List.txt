@@ -27,12 +27,17 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    stops detecting/solving Chat Games entirely
                                    (won't answer or record new puzzles until
                                    re-enabled)
+- "Meow, toggle chat games."   -> flips the chat games solver on/off from
+                                   whatever it currently is
 
 Automatic (no chat trigger needed):
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
   it, replacing whatever's currently worn in that slot, and drops the old
   piece on the ground. Only works if the picked-up armor lands in the
   hotbar (a server limitation, not a choice).
+- On first spawn, registers via /register smolbrain smolbrain if this is a
+  server the bot hasn't joined before (tracked in registered-hosts.json),
+  otherwise logs in via /login smolbrain as usual.
 - "CHAT GAMES" events: DISABLED BY DEFAULT as of 2026-08-14 - the account
   was banned ("afk farming chat games") for this exact behavior. Use
   "Meow, enable chat games." (or the control panel) to turn it back on at

@@ -3,6 +3,7 @@ const consoleView = document.getElementById('console-view');
 const logView = document.getElementById('log-view');
 const launchBtn = document.getElementById('launch-btn');
 const shutdownBtn = document.getElementById('shutdown-btn');
+const chatGamesToggle = document.getElementById('chat-games-toggle');
 
 const appendAndScroll = (el, text) => {
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
@@ -27,6 +28,8 @@ const setStatus = (status) => {
         statusEl.textContent = `online${health}${totem}${chatGames}`;
         statusEl.className = 'status status-online';
     }
+
+    chatGamesToggle.checked = status.chatGamesEnabled === true;
 };
 
 fetch('/api/log').then((r) => r.text()).then((text) => {
@@ -68,6 +71,14 @@ document.getElementById('do-command-btn').addEventListener('click', () => {
         body: JSON.stringify({ name: 'doCommand', payload: input.value }),
     });
     input.value = '';
+});
+
+chatGamesToggle.addEventListener('change', () => {
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: chatGamesToggle.checked ? 'enableChatGames' : 'disableChatGames' }),
+    });
 });
 
 document.getElementById('say-btn').addEventListener('click', () => {

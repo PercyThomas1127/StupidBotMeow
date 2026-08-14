@@ -67,3 +67,8 @@ Answer: Stone
           `How many sides does a dice have? (number)`
 Answer: 6
 ---
+✓ ✯ CHAT GAMES ✯ ✓
+
+           You have 20 seconds to unscramble: `itNhg`
+Answer: Night
+---

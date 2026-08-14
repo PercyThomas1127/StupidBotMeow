@@ -11,6 +11,23 @@ const log = (label, detail) => {
 const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04', 'AustrichMC'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
+const HOST = 'play.skeletonmc.com';
+const PORT = 25565;
+
+// tracks which hosts we've already registered an account on, so a fresh
+// server (e.g. if HOST is ever changed) gets /register instead of /login
+// on its first join, while known hosts keep using /login as normal
+const REGISTERED_HOSTS_PATH = path.join(__dirname, 'registered-hosts.json');
+const registeredHosts = new Set(
+    fs.existsSync(REGISTERED_HOSTS_PATH)
+        ? JSON.parse(fs.readFileSync(REGISTERED_HOSTS_PATH, 'utf8'))
+        : []
+);
+const markHostRegistered = (host) => {
+    registeredHosts.add(host);
+    fs.writeFileSync(REGISTERED_HOSTS_PATH, JSON.stringify([...registeredHosts].sort(), null, 2) + '\n');
+};
+
 // Chat Games are multi-line broadcast puzzles (header, blank lines, equations,
 // etc.) sent as a burst of separate chat messages. Buffer every message from
 // the "CHAT GAMES" header onward, and once the burst goes quiet for a bit,
@@ -98,8 +115,8 @@ function connect() {
         : RECONNECT_DELAY_MS;
 
     const bot = mineflayer.createBot({
-        host: 'play.skeletonmc.com',
-        port: 25565,
+        host: HOST,
+        port: PORT,
         username: 'MeowMeowNya',
         version: '1.16.5',
     });
@@ -236,7 +253,12 @@ function connect() {
 
     bot.once('spawn', () => {
         console.log('Meow')
-        bot.chat('/login smolbrain')
+        if (registeredHosts.has(HOST)) {
+            bot.chat('/login smolbrain')
+        } else {
+            bot.chat('/register smolbrain smolbrain')
+            markHostRegistered(HOST)
+        }
         reportStatus()
         bot.on('health', reportStatus)
 
@@ -311,6 +333,11 @@ function connect() {
             bot.chat('Chat game solver disabled.')
             reportStatus()
         },
+        toggleChatGames: () => {
+            chatGamesEnabled = !chatGamesEnabled
+            bot.chat(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
+            reportStatus()
+        },
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
@@ -353,6 +380,8 @@ function connect() {
             actions.enableChatGames()
         } else if (isFromOperator(message) && message.includes('Meow, disable chat games.')) {
             actions.disableChatGames()
+        } else if (isFromOperator(message) && message.includes('Meow, toggle chat games.')) {
+            actions.toggleChatGames()
         } else if (isFromOperator(message)) {
             const match = message.match(/Meow, do (.+)/)
             if (match) actions.doCommand(match[1])
