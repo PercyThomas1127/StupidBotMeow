@@ -111,3 +111,13 @@ document.getElementById('say-btn').addEventListener('click', () => {
     });
     input.value = '';
 });
+
+document.getElementById('build-btn').addEventListener('click', () => {
+    const input = document.getElementById('build-input');
+    if (!input.value.trim()) return;
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'build', payload: input.value }),
+    });
+});

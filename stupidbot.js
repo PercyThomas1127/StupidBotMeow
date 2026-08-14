@@ -1,8 +1,10 @@
 const mineflayer = require ('mineflayer');
 const { pathfinder, Movements, goals } = require('mineflayer-pathfinder');
+const { Vec3 } = require('vec3');
 const fs = require('fs');
 const path = require('path');
 const chatGameSolver = require('./chatgame-solver');
+const schematicBuilder = require('./schematic-builder');
 
 const logPath = path.join(__dirname, 'errors.txt');
 const log = (label, detail) => {
@@ -263,6 +265,88 @@ function connect() {
         })
     }
 
+    // finds a solid neighbor of `position` to place a block against, and the
+    // face vector (from that neighbor) pointing at `position` - mirrors how
+    // a player has to click an existing block's face to place a new one
+    const NEIGHBOR_OFFSETS = [
+        new Vec3(0, -1, 0), new Vec3(0, 1, 0),
+        new Vec3(-1, 0, 0), new Vec3(1, 0, 0),
+        new Vec3(0, 0, -1), new Vec3(0, 0, 1),
+    ]
+    const findPlacementReference = (position) => {
+        for (const offset of NEIGHBOR_OFFSETS) {
+            const neighborPos = position.plus(offset)
+            const neighborBlock = bot.blockAt(neighborPos)
+            if (neighborBlock && neighborBlock.boundingBox === 'block') {
+                return { referenceBlock: neighborBlock, faceVector: offset.scaled(-1) }
+            }
+        }
+        return null
+    }
+
+    let buildCancelled = false
+
+    const buildSchematic = async (payload) => {
+        const match = payload && payload.match(/^(\S+)\s+at\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\.?$/i)
+        if (!match) {
+            bot.chat('Usage: Meow, build <name> at <x> <y> <z>.')
+            return
+        }
+        const [, name, xStr, yStr, zStr] = match
+
+        const schematic = await schematicBuilder.loadSchematic(name).catch(err => {
+            log('BUILD_LOAD_ERROR', err.message)
+            return null
+        })
+        if (!schematic) {
+            bot.chat(`Schematic not found: ${name}`)
+            return
+        }
+
+        const anchor = { x: parseInt(xStr, 10), y: parseInt(yStr, 10), z: parseInt(zStr, 10) }
+        const plan = schematicBuilder.buildPlan(schematic, anchor)
+        buildCancelled = false
+        bot.chat(`Building ${name} (${plan.length} blocks)...`)
+
+        let placed = 0
+        let skipped = 0
+        for (const step of plan) {
+            if (buildCancelled) {
+                bot.chat(`Build cancelled (${placed} placed, ${skipped} skipped).`)
+                return
+            }
+
+            const position = new Vec3(step.x, step.y, step.z)
+            const existing = bot.blockAt(position)
+            if (existing && existing.name === step.blockName) {
+                placed++
+                continue
+            }
+
+            const item = bot.inventory.items().find(i => i.name === step.blockName)
+            if (!item) {
+                skipped++
+                continue
+            }
+
+            try {
+                await bot.pathfinder.goto(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                const reference = findPlacementReference(position)
+                if (!reference) {
+                    skipped++
+                    continue
+                }
+                await bot.equip(item, 'hand')
+                await bot.placeBlock(reference.referenceBlock, reference.faceVector)
+                placed++
+            } catch (err) {
+                log('BUILD_ERROR', { position: step, block: step.blockName, error: err.message })
+                skipped++
+            }
+        }
+        bot.chat(`Build complete: ${placed} placed, ${skipped} skipped.`)
+    }
+
     bot.once('spawn', () => {
         console.log('Meow')
         if (registeredHosts.has(HOST)) {
@@ -352,16 +436,18 @@ function connect() {
             bot.chat(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },
-        walkToMe: () => {
-            const target = bot.players['VOlcarona_Alt'] && bot.players['VOlcarona_Alt'].entity
+        walkToMe: (username) => {
+            const target = username && bot.players[username] && bot.players[username].entity
             if (!target) {
-                bot.chat("Can't see VOlcarona_Alt")
+                bot.chat(`Can't see ${username || 'you'}`)
                 return
             }
             const { x, y, z } = target.position
             bot.pathfinder.setGoal(new goals.GoalNear(x, y, z, 1))
         },
         stopWalking: () => bot.pathfinder.setGoal(null),
+        build: (payload) => buildSchematic(payload),
+        stopBuilding: () => { buildCancelled = true },
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
@@ -389,10 +475,15 @@ function connect() {
             actions.tpToMe()
         } else if (message.includes('Meow, tp me to you.')) {
             actions.tpMeToYou()
-        } else if (message.includes('Meow, walk to me.')) {
-            actions.walkToMe()
         } else if (message.includes('Meow, stop.')) {
             actions.stopWalking()
+            actions.stopBuilding()
+        } else if (isFromOperator(message) && message.includes('Meow, walk to me.')) {
+            const requester = OPERATORS.find(name => message.includes(name))
+            actions.walkToMe(requester)
+        } else if (isFromOperator(message) && message.includes('Meow, build ')) {
+            const match = message.match(/Meow, build (.+)/)
+            if (match) actions.build(match[1])
         } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
             actions.enableTotemMode()
         } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {

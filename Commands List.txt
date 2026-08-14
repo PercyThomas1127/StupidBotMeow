@@ -4,13 +4,13 @@ stupidbot Commands List
 Anyone can say these in chat:
 - "Meow, tp to me."          -> bot sends /tpa VOlcarona_Alt
 - "Meow, tp me to you."      -> bot sends /tpahere VOlcarona_Alt
-- "Meow, walk to me."        -> bot pathfinds (walks, no teleport) to
-                                 VOlcarona_Alt's current position, if it can
-                                 see them (says "Can't see VOlcarona_Alt" if
-                                 not loaded/nearby)
 - "Meow, stop."              -> bot cancels its current pathfinding goal
 
 VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
+- "Meow, walk to me."          -> bot pathfinds (walks, no teleport) to
+                                   whichever of the three sent the message, if
+                                   it can see them (says "Can't see <name>" if
+                                   not loaded/nearby)
 - "Meow, enable totem mode."   -> bot crouches 3 times, equips a Totem of
                                    Undying to its offhand (or says "Totem
                                    required" if it has none), and
@@ -34,6 +34,10 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    re-enabled)
 - "Meow, toggle chat games."   -> flips the chat games solver on/off from
                                    whatever it currently is
+- "Meow, build <name> at <x> <y> <z>." -> loads schematics/<name>.schem and
+                                   builds it with that corner as the anchor
+                                   (walks to each block, equips the matching
+                                   item, and places it - see notes below)
 
 Automatic (no chat trigger needed):
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
@@ -56,3 +60,14 @@ Automatic (no chat trigger needed):
   puzzle. Winner/result announcements aren't logged as puzzles, but any word
   they reveal is learned automatically for solving future fill-in/unscramble
   rounds using that same word.
+
+Schematic builder notes/limitations (schematic-builder.js):
+- Drop .schem files (Sponge or MCEdit format) in schematics/.
+- Only *places* blocks - never breaks/clears existing terrain, so pick an
+  anchor with clear space, or expect leftover terrain poking through.
+- Skips any block it doesn't already have in its inventory (counts as
+  "skipped" in the completion message) - stock the bot up first.
+- Places blocks bottom-up (lowest Y first) for basic support, but doesn't
+  reason about block orientation/rotation (stairs, doors, etc. may place
+  facing the wrong way).
+- "Meow, stop." cancels an in-progress build (as well as any pathfinding).
