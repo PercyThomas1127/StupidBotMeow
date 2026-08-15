@@ -428,12 +428,17 @@ function connect() {
     // path to (e.g. sealed in a cave wall) doesn't just get found again
     // immediately as "the nearest match" and re-attempted forever
     const TREE_SEARCH_POLL_MS = 2000
-    const findTree = async (matchName, timeoutMs, unreachable) => {
+    const findTree = async (matchName, timeoutMs, unreachable, rejectedOrigins) => {
         const deadline = Date.now() + timeoutMs
         while (Date.now() < deadline) {
             if (gatherCancelled) return null
             const block = bot.findBlock({
-                matching: (b) => (matchName ? b.name === matchName : isLogBlock(b)) && !unreachable.has(b.position.toString()),
+                matching: (b) => {
+                    if (matchName ? b.name !== matchName : !isLogBlock(b)) return false
+                    if (unreachable.has(b.position.toString())) return false
+                    if (rejectedOrigins.some((p) => b.position.distanceTo(p) < NON_TREE_EXCLUSION_RADIUS)) return false
+                    return true
+                },
                 maxDistance: 48,
             })
             if (block) return block
@@ -451,6 +456,41 @@ function connect() {
         new Vec3(0, 1, 0), new Vec3(0, -1, 0),
         new Vec3(0, 0, 1), new Vec3(0, 0, -1),
     ]
+
+    // avoid vandalizing player builds made of log blocks (cabins, fences,
+    // etc.): a real tree always has leaves touching its trunk somewhere, so
+    // walk the chain of connected same-type logs from the found block (up
+    // to NON_TREE_CHAIN_LIMIT logs total, including the starting one)
+    // looking for one with leaves adjacent to it. If none of the chain has
+    // leaves, treat it as a built structure rather than a tree.
+    const NON_TREE_CHAIN_LIMIT = 7
+    const NON_TREE_EXCLUSION_RADIUS = 7
+    const hasAdjacentLeaves = (pos) => LOG_NEIGHBOR_OFFSETS.some((offset) => {
+        const neighbor = bot.blockAt(pos.plus(offset))
+        return !!neighbor && neighbor.name.endsWith('leaves')
+    })
+    const isPartOfRealTree = (startBlock) => {
+        const logName = startBlock.name
+        const visited = new Set([startBlock.position.toString()])
+        let current = startBlock
+        for (let hop = 0; hop < NON_TREE_CHAIN_LIMIT; hop++) {
+            if (hasAdjacentLeaves(current.position)) return true
+            let next = null
+            for (const offset of LOG_NEIGHBOR_OFFSETS) {
+                const neighborPos = current.position.plus(offset)
+                if (visited.has(neighborPos.toString())) continue
+                const neighborBlock = bot.blockAt(neighborPos)
+                if (neighborBlock && neighborBlock.name === logName) {
+                    next = neighborBlock
+                    break
+                }
+            }
+            if (!next) return false
+            visited.add(next.position.toString())
+            current = next
+        }
+        return false
+    }
     // returns the number of logs actually dug this call (normal log
     // breaking always drops exactly one item per block, so blocks-dug is an
     // accurate count of logs collected without needing to diff inventory).
@@ -513,10 +553,11 @@ function connect() {
         let collected = 0
         let targetLogName = null
         const unreachable = new Set()
+        const rejectedOrigins = []
         console.log(`[GATHER_WOOD] Looking for a tree (target: ${targetCount} logs)...`)
 
         while (collected < targetCount) {
-            const tree = await findTree(targetLogName, GATHER_WOOD_TIMEOUT_MS, unreachable)
+            const tree = await findTree(targetLogName, GATHER_WOOD_TIMEOUT_MS, unreachable, rejectedOrigins)
             if (gatherCancelled) {
                 console.log(`[GATHER_WOOD] Cancelled (${collected}/${targetCount} collected).`)
                 return
@@ -524,6 +565,11 @@ function connect() {
             if (!tree) {
                 console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after ${GATHER_WOOD_TIMEOUT_MS / 1000}s, stopping (${collected}/${targetCount} collected).`)
                 return
+            }
+            if (!isPartOfRealTree(tree)) {
+                console.log(`[GATHER_WOOD] Log at ${tree.position} doesn't look like a real tree (no leaves nearby) - skipping, likely a player build.`)
+                rejectedOrigins.push(tree.position)
+                continue
             }
             targetLogName = tree.name
             collected += await chopTree(tree, targetCount - collected, unreachable)

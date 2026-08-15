@@ -130,6 +130,14 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
 - A log the bot can't actually path to (e.g. sealed behind other blocks) is
   permanently skipped for the rest of that gather instead of being found
   and retried forever as "the nearest tree".
+- Won't vandalize player builds made of log blocks (cabins, fences, etc.):
+  before chopping, it checks whether the found log has leaves touching it;
+  if not, it walks the chain of connected same-type logs (up to 7 total,
+  including the one it found) looking for one with adjacent leaves. If one
+  turns up, it confirms this is a real tree and chops the *original* log
+  found (not the one where leaves were spotted). If none of the 7 has
+  leaves, it's treated as a built structure - that log (and anything within
+  7 blocks of it) is skipped and it searches for a different tree instead.
 - After finishing (or running out of) one tree, it searches again - but
   only for the same wood type as the first tree - for up to 10 seconds
   before giving up and stopping early with however many logs it has.
