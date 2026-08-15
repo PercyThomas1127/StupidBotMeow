@@ -205,13 +205,16 @@ checkbox):
   where it looked like the knockback wasn't pushing them back far enough).
   Creepers specifically also get an extra backward retreat after each hit
   for additional safety margin against their explosion.
-- Jumps continuously while closing distance (chasing or attack-lunging)
-  instead of getting stuck against ledges - players (unlike most mobs) don't
-  auto-step up a full block, so plain forward movement alone would just stop
-  dead at any 1-block obstacle in the way. A smarter "only jump when actually
-  blocked" version (based on a physics collision flag) didn't reliably catch
-  it in practice, so this trades a bit of unnecessary hopping for something
-  that actually works.
+- Closing distance to chase a mob uses real pathfinding (mineflayer-
+  pathfinder's GoalFollow, dynamically updated as the mob moves) instead of
+  just walking straight at it - routes around obstacles too tall to jump
+  (e.g. a 2-block wall) the same way a real mob would, rather than getting
+  stuck marching into it. The short attack-lunge itself (the final dash from
+  ~3 blocks to swing) is still manual control, with jump held continuously
+  so it clears any 1-block ledge in that last stretch - a "only jump when
+  actually blocked" version (based on a physics collision flag) didn't
+  reliably catch it in practice, so this trades a bit of unnecessary hopping
+  for something that actually works.
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or

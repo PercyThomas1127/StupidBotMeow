@@ -790,10 +790,21 @@ function connect() {
         return nearest ? { entity: nearest, distance: nearestDistance } : null
     }
 
+    // tracks which entity id pathfinder is currently chasing via GoalFollow,
+    // so we don't re-issue setGoal (and restart its A* search) every single
+    // 150ms tick while already following the same mob
+    let followingEntityId = null
+    const stopFollowing = () => {
+        if (followingEntityId === null) return
+        bot.pathfinder.setGoal(null)
+        followingEntityId = null
+    }
+
     const attackHostilesTick = () => {
         if (!attackHostilesEnabled || !bot.entity) return
         const target = findNearestHostile()
         if (!target) {
+            stopFollowing()
             stopCombatMovement()
             return
         }
@@ -804,19 +815,15 @@ function connect() {
 
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
         if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
+            // take manual control for the precise attack lunge - pathfinder
+            // isn't driving anything during this part
+            stopFollowing()
             // gate immediately (before the wind-up below) so an overlapping
             // tick can't re-trigger a second attack while this one is still
             // winding up
             lastHostileAttackTime = Date.now()
             bot.setControlState('sprint', true)
             bot.setControlState('forward', true)
-            // players (unlike most mobs) can't auto-step up a full block -
-            // holding jump continuously while closing distance guarantees any
-            // 1-block ledge gets cleared. A collision-flag-based "only jump
-            // when actually blocked" version didn't reliably catch it in
-            // practice (likely a polling-rate mismatch: this tick runs every
-            // 150ms, slower than the physics engine's own state updates), so
-            // this trades a bit of unnecessary hopping for actually working.
             bot.setControlState('jump', true)
             // swinging in the same instant as setting sprint/forward doesn't
             // give the server time to register the sprint state from an
@@ -832,6 +839,7 @@ function connect() {
                 // immediately closed the gap again)
                 bot.setControlState('forward', false)
                 bot.setControlState('sprint', false)
+                bot.setControlState('jump', false)
                 if (mob.name === 'creeper') {
                     // extra safety margin - creepers explode on proximity,
                     // so maximize separation after every hit instead of
@@ -841,20 +849,27 @@ function connect() {
                 }
             }, 100)
         } else if (distance > HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
-            // sprint while closing distance too, not just during the attack
-            // lunge - otherwise closing a large gap (e.g. chasing a
-            // skeleton trying to keep its range) happens at walking speed.
-            // Jump continuously too, same reasoning as the attack lunge above.
-            bot.setControlState('sprint', true)
+            // let pathfinder handle closing distance instead of blindly
+            // walking forward - GoalFollow does real A* pathing around
+            // obstacles (e.g. a 2-block wall no amount of jumping can clear),
+            // the same way pathfinder already jumps 1-block ledges elsewhere
+            // in this bot, instead of just marching straight at the target
+            // and getting stuck like the raw-control-state version did.
+            // Dynamic (the `true` arg) keeps it updated as the mob moves,
+            // without us needing to re-issue the goal every tick.
             bot.setControlState('back', false)
-            bot.setControlState('forward', true)
-            bot.setControlState('jump', true)
+            if (followingEntityId !== mob.id) {
+                bot.pathfinder.setGoal(new goals.GoalFollow(mob, HOSTILE_HOLD_DISTANCE), true)
+                followingEntityId = mob.id
+            }
         } else if (distance < HOSTILE_HOLD_DISTANCE - HOSTILE_DISTANCE_TOLERANCE) {
+            stopFollowing()
             bot.setControlState('sprint', false)
             bot.setControlState('forward', false)
             bot.setControlState('jump', false)
             bot.setControlState('back', true)
         } else {
+            stopFollowing()
             stopCombatMovement()
         }
     }
