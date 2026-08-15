@@ -25,6 +25,23 @@ console.warn = (...args) => {
     originalConsoleWarn(...args);
 };
 
+// protodef (minecraft-protocol's packet decoder) logs this whenever a
+// packet's declared field list doesn't consume the whole buffer - traced
+// this to entity_teleport specifically at protocol 774 (1.21.11): the real
+// wire packet now carries extra fields (velocity + float yaw/pitch) that
+// minecraft-data's definition for this version doesn't know about yet, so
+// it stops early and warns about the leftover bytes on every single
+// occurrence. The fields we actually use (entity position) decode fine
+// either way since they come before the point where the definition falls
+// behind - only the unused trailing fields (yaw/pitch/onGround) come out
+// garbled - so this is safe to silence rather than fix with a hand-rebuilt
+// packet definition that could introduce a subtler bug if wrong.
+const originalConsoleLog = console.log.bind(console);
+console.log = (...args) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('Chunk size is') && args[0].includes('was read')) return;
+    originalConsoleLog(...args);
+};
+
 // server to connect to - stored in server-config.json so the control panel
 // can change it before a launch without editing code
 const SERVER_CONFIG_PATH = path.join(__dirname, 'server-config.json');
