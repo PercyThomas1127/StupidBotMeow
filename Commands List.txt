@@ -138,8 +138,12 @@ Schematic builder notes/limitations (schematic-builder.js):
 - "Meow, stop." cancels an in-progress build (as well as any pathfinding).
 
 Wood gathering notes/limitations ("Meow, gather wood (n)."):
-- Equips any item ending in "_axe" it's already carrying (no crafting - if
-  it doesn't have one, it just punches trees by hand instead).
+- Automatically equips the correct tool category for whatever block it's
+  about to break (axe for logs, pickaxe/shovel/hoe for anything else this
+  gets used on later) if it's carrying one - re-checked before every single
+  block, not just once at the start. No crafting - if it doesn't have the
+  right tool, it just digs with whatever's already held (fist included)
+  instead of refusing.
 - Searches for the nearest log-type block (anything ending in "_log" or
   "_stem") within 48 blocks, giving up after 10 seconds if none is found.
 - Once a tree is found, every log block connected to it (trunk plus any
@@ -195,10 +199,13 @@ checkbox):
   where it looked like the knockback wasn't pushing them back far enough).
   Creepers specifically also get an extra backward retreat after each hit
   for additional safety margin against their explosion.
-- Jumps over 1-block ledges while approaching/retreating instead of getting
-  stuck against them - players (unlike most mobs) don't auto-step up a full
-  block, so plain forward/back movement alone would just stop dead at any
-  1-block obstacle in the way.
+- Jumps continuously while closing distance (chasing or attack-lunging)
+  instead of getting stuck against ledges - players (unlike most mobs) don't
+  auto-step up a full block, so plain forward movement alone would just stop
+  dead at any 1-block obstacle in the way. A smarter "only jump when actually
+  blocked" version (based on a physics collision flag) didn't reliably catch
+  it in practice, so this trades a bit of unnecessary hopping for something
+  that actually works.
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or

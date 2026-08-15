@@ -498,6 +498,29 @@ function connect() {
         console.log(`[BUILD] Build complete: ${placed} placed, ${skipped} skipped.`)
     }
 
+    // picks whatever tool matches the block's required category (using
+    // minecraft-data's standardized "mineable/X" material field, which
+    // covers axe/pickaxe/shovel/hoe) if one is carried; otherwise leaves
+    // whatever's currently held alone - fist (or any hotbar item) still
+    // breaks the block, just slower, rather than refusing to dig
+    const TOOL_MATERIAL_SUFFIX = {
+        'mineable/axe': '_axe',
+        'mineable/pickaxe': '_pickaxe',
+        'mineable/shovel': '_shovel',
+        'mineable/hoe': '_hoe',
+    }
+    const equipCorrectToolFor = async (block) => {
+        const toolSuffix = TOOL_MATERIAL_SUFFIX[block.material]
+        if (!toolSuffix) return
+        const tool = bot.inventory.items().find((item) => item.name.endsWith(toolSuffix))
+        if (!tool || (bot.heldItem && bot.heldItem.type === tool.type)) return
+        try {
+            await bot.equip(tool, 'hand')
+        } catch (err) {
+            log('EQUIP_TOOL_ERROR', err.message)
+        }
+    }
+
     let gatherCancelled = false
     const isLogBlock = (block) => !!block && (block.name.endsWith('_log') || block.name.endsWith('_stem'))
     const GATHER_WOOD_TIMEOUT_MS = 10000
@@ -604,6 +627,7 @@ function connect() {
                 // (reading 'distanceTo')" the moment the bot gets close. Using
                 // GoalLookAtBlock directly sidesteps the buggy wrapper.
                 await gotoWithTimeout(new goals.GoalLookAtBlock(pos, bot.world, { reach: 4 }))
+                await equipCorrectToolFor(block)
                 await bot.dig(block)
                 dug++
                 await new Promise((resolve) => setTimeout(resolve, 300)) // let the dropped item settle/get picked up
@@ -632,9 +656,6 @@ function connect() {
             return
         }
         gatherCancelled = false
-
-        const axe = bot.inventory.items().find((item) => item.name.endsWith('_axe'))
-        if (axe) await bot.equip(axe, 'hand').catch((err) => log('GATHER_WOOD_ERROR', err.message))
 
         let collected = 0
         let targetLogName = null
@@ -742,13 +763,6 @@ function connect() {
         bot.lookAt(mob.position.offset(0, (mob.height || 1.8) / 2, 0)).catch(() => {})
         ensureBestWeaponEquipped()
 
-        // players (unlike most mobs) can't auto-step up a full block - forward
-        // movement alone just stops dead against any 1-block ledge. Jump
-        // exactly when actually blocked (rather than holding it constantly)
-        // using prismarine-physics's own collision flag, so approaching or
-        // retreating across uneven terrain doesn't get stuck.
-        bot.setControlState('jump', !!bot.entity.isCollidedHorizontally && bot.entity.onGround)
-
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
         if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
             // gate immediately (before the wind-up below) so an overlapping
@@ -757,6 +771,14 @@ function connect() {
             lastHostileAttackTime = Date.now()
             bot.setControlState('sprint', true)
             bot.setControlState('forward', true)
+            // players (unlike most mobs) can't auto-step up a full block -
+            // holding jump continuously while closing distance guarantees any
+            // 1-block ledge gets cleared. A collision-flag-based "only jump
+            // when actually blocked" version didn't reliably catch it in
+            // practice (likely a polling-rate mismatch: this tick runs every
+            // 150ms, slower than the physics engine's own state updates), so
+            // this trades a bit of unnecessary hopping for actually working.
+            bot.setControlState('jump', true)
             // swinging in the same instant as setting sprint/forward doesn't
             // give the server time to register the sprint state from an
             // actual movement tick first, so the sprinting-hit knockback
@@ -782,13 +804,16 @@ function connect() {
         } else if (distance > HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
             // sprint while closing distance too, not just during the attack
             // lunge - otherwise closing a large gap (e.g. chasing a
-            // skeleton trying to keep its range) happens at walking speed
+            // skeleton trying to keep its range) happens at walking speed.
+            // Jump continuously too, same reasoning as the attack lunge above.
             bot.setControlState('sprint', true)
             bot.setControlState('back', false)
             bot.setControlState('forward', true)
+            bot.setControlState('jump', true)
         } else if (distance < HOSTILE_HOLD_DISTANCE - HOSTILE_DISTANCE_TOLERANCE) {
             bot.setControlState('sprint', false)
             bot.setControlState('forward', false)
+            bot.setControlState('jump', false)
             bot.setControlState('back', true)
         } else {
             stopCombatMovement()
