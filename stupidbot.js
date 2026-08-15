@@ -1003,7 +1003,7 @@ function connect() {
         if (!process.send) return
         process.send({
             type: 'status',
-            data: { connected: !!bot.entity, health: bot.health, totemModeActive, chatGamesEnabled, attackHostilesEnabled }
+            data: { connected: !!bot.entity, health: bot.health, food: bot.food, totemModeActive, chatGamesEnabled, attackHostilesEnabled }
         })
     }
 

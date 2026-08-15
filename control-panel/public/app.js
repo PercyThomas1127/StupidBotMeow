@@ -29,10 +29,11 @@ const setStatus = (status) => {
         statusEl.className = 'status status-connecting';
     } else {
         const health = status.health != null ? ` (health ${status.health})` : '';
+        const food = status.food != null ? ` (food ${status.food})` : '';
         const totem = status.totemModeActive ? ' | totem mode on' : '';
         const chatGames = status.chatGamesEnabled === false ? ' | chat games off' : '';
         const attackHostiles = status.attackHostilesEnabled ? ' | attacking hostiles' : '';
-        statusEl.textContent = `online${health}${totem}${chatGames}${attackHostiles}`;
+        statusEl.textContent = `online${health}${food}${totem}${chatGames}${attackHostiles}`;
         statusEl.className = 'status status-online';
     }
 
