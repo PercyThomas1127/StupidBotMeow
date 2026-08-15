@@ -348,6 +348,30 @@ function connect() {
         return null
     }
 
+    // bot.pathfinder.goto() can hang indefinitely with no error and no
+    // timeout of its own - most commonly when its built-in scaffolding
+    // (jump + place a block underfoot to climb) gets stuck retrying a
+    // placement that keeps losing the race against network latency. Once
+    // hung, it can't even be interrupted by our own cancellation flags,
+    // since those are only checked between awaits, not during one already
+    // in flight. This wraps goto() with a hard timeout that force-stops
+    // pathfinder (bot.pathfinder.stop(), which cleanly rejects the pending
+    // goto()) instead of blocking whatever called it forever.
+    const PATHFINDER_TIMEOUT_MS = 8000
+    const gotoWithTimeout = (goal, timeoutMs = PATHFINDER_TIMEOUT_MS) => new Promise((resolve, reject) => {
+        let settled = false
+        const timer = setTimeout(() => {
+            if (settled) return
+            settled = true
+            bot.pathfinder.stop()
+            reject(new Error(`pathfinder timed out after ${timeoutMs}ms`))
+        }, timeoutMs)
+        bot.pathfinder.goto(goal).then(
+            () => { if (!settled) { settled = true; clearTimeout(timer); resolve() } },
+            (err) => { if (!settled) { settled = true; clearTimeout(timer); reject(err) } }
+        )
+    })
+
     let buildCancelled = false
 
     const buildSchematic = async (payload) => {
@@ -402,7 +426,7 @@ function connect() {
             }
 
             try {
-                await bot.pathfinder.goto(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
                 const reference = findPlacementReference(position)
                 if (!reference) {
                     skipped++
@@ -524,7 +548,7 @@ function connect() {
                 // the whole process with "Cannot read properties of undefined
                 // (reading 'distanceTo')" the moment the bot gets close. Using
                 // GoalLookAtBlock directly sidesteps the buggy wrapper.
-                await bot.pathfinder.goto(new goals.GoalLookAtBlock(pos, bot.world, { reach: 4 }))
+                await gotoWithTimeout(new goals.GoalLookAtBlock(pos, bot.world, { reach: 4 }))
                 await bot.dig(block)
                 dug++
                 await new Promise((resolve) => setTimeout(resolve, 300)) // let the dropped item settle/get picked up
@@ -766,7 +790,7 @@ function connect() {
             // anti-cheat on these networks silently drops it if we're too far
             // away (this is why earlier attempts logged FOUND but never
             // actually entered the main server) - walk within range first
-            bot.pathfinder.goto(new goals.GoalNear(npc.position.x, npc.position.y, npc.position.z, HUB_NPC_INTERACT_RANGE))
+            gotoWithTimeout(new goals.GoalNear(npc.position.x, npc.position.y, npc.position.z, HUB_NPC_INTERACT_RANGE))
                 .then(() => bot.activateEntity(npc))
                 .catch(err => log('HUB_NPC_ERROR', err.message))
             return
