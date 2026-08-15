@@ -122,13 +122,16 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
 - Equips any item ending in "_axe" it's already carrying (no crafting - if
   it doesn't have one, it just punches trees by hand instead).
 - Searches for the nearest log-type block (anything ending in "_log" or
-  "_stem") within 48 blocks, giving up after 30 seconds if none is found.
+  "_stem") within 48 blocks, giving up after 10 seconds if none is found.
 - Once a tree is found, every log block connected to it (trunk plus any
   log-only branches) of that exact same wood type is chopped, stopping
   early the instant n total logs have been collected even if part of the
   tree is left standing.
+- A log the bot can't actually path to (e.g. sealed behind other blocks) is
+  permanently skipped for the rest of that gather instead of being found
+  and retried forever as "the nearest tree".
 - After finishing (or running out of) one tree, it searches again - but
-  only for the same wood type as the first tree - for up to 30 seconds
+  only for the same wood type as the first tree - for up to 10 seconds
   before giving up and stopping early with however many logs it has.
 - Progress/results are console/log-only, same reasoning as the build
   command above. "Meow, stop." cancels an in-progress gather.

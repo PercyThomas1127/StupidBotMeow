@@ -419,17 +419,21 @@ function connect() {
 
     let gatherCancelled = false
     const isLogBlock = (block) => !!block && (block.name.endsWith('_log') || block.name.endsWith('_stem'))
+    const GATHER_WOOD_TIMEOUT_MS = 10000
 
     // polls for a matching tree rather than a single findBlock call, since
     // the target may not be in a loaded chunk yet or may not exist at all -
-    // gives up (returns null) after timeoutMs instead of searching forever
+    // gives up (returns null) after timeoutMs instead of searching forever.
+    // unreachable positions are excluded so a log the bot already failed to
+    // path to (e.g. sealed in a cave wall) doesn't just get found again
+    // immediately as "the nearest match" and re-attempted forever
     const TREE_SEARCH_POLL_MS = 2000
-    const findTree = async (matchName, timeoutMs) => {
+    const findTree = async (matchName, timeoutMs, unreachable) => {
         const deadline = Date.now() + timeoutMs
         while (Date.now() < deadline) {
             if (gatherCancelled) return null
             const block = bot.findBlock({
-                matching: (b) => matchName ? b.name === matchName : isLogBlock(b),
+                matching: (b) => (matchName ? b.name === matchName : isLogBlock(b)) && !unreachable.has(b.position.toString()),
                 maxDistance: 48,
             })
             if (block) return block
@@ -449,8 +453,11 @@ function connect() {
     ]
     // returns the number of logs actually dug this call (normal log
     // breaking always drops exactly one item per block, so blocks-dug is an
-    // accurate count of logs collected without needing to diff inventory)
-    const chopTree = async (startBlock, remaining) => {
+    // accurate count of logs collected without needing to diff inventory).
+    // `unreachable` is shared across the whole gather-wood run so a log the
+    // pathfinder can't reach gets permanently skipped instead of being
+    // re-selected as "the nearest tree" on the very next search
+    const chopTree = async (startBlock, remaining, unreachable) => {
         const logName = startBlock.name
         const visited = new Set()
         const queue = [startBlock.position]
@@ -476,13 +483,14 @@ function connect() {
                 await new Promise((resolve) => setTimeout(resolve, 300)) // let the dropped item settle/get picked up
             } catch (err) {
                 log('GATHER_WOOD_ERROR', { position: pos, error: err.message })
+                unreachable.add(pos.toString())
                 continue
             }
 
             for (const offset of LOG_NEIGHBOR_OFFSETS) {
                 const neighborPos = pos.plus(offset)
                 const key = neighborPos.toString()
-                if (visited.has(key)) continue
+                if (visited.has(key) || unreachable.has(key)) continue
                 visited.add(key)
                 const neighborBlock = bot.blockAt(neighborPos)
                 if (neighborBlock && neighborBlock.name === logName) queue.push(neighborPos)
@@ -504,20 +512,21 @@ function connect() {
 
         let collected = 0
         let targetLogName = null
+        const unreachable = new Set()
         console.log(`[GATHER_WOOD] Looking for a tree (target: ${targetCount} logs)...`)
 
         while (collected < targetCount) {
-            const tree = await findTree(targetLogName, 30000)
+            const tree = await findTree(targetLogName, GATHER_WOOD_TIMEOUT_MS, unreachable)
             if (gatherCancelled) {
                 console.log(`[GATHER_WOOD] Cancelled (${collected}/${targetCount} collected).`)
                 return
             }
             if (!tree) {
-                console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after 30s, stopping (${collected}/${targetCount} collected).`)
+                console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after ${GATHER_WOOD_TIMEOUT_MS / 1000}s, stopping (${collected}/${targetCount} collected).`)
                 return
             }
             targetLogName = tree.name
-            collected += await chopTree(tree, targetCount - collected)
+            collected += await chopTree(tree, targetCount - collected, unreachable)
         }
         console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
     }
