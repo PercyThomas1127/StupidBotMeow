@@ -4,6 +4,7 @@ const logView = document.getElementById('log-view');
 const launchBtn = document.getElementById('launch-btn');
 const shutdownBtn = document.getElementById('shutdown-btn');
 const chatGamesToggle = document.getElementById('chat-games-toggle');
+const attackHostilesToggle = document.getElementById('attack-hostiles-toggle');
 const serverHostInput = document.getElementById('server-host-input');
 const serverPortInput = document.getElementById('server-port-input');
 const serverUsernameInput = document.getElementById('server-username-input');
@@ -30,11 +31,13 @@ const setStatus = (status) => {
         const health = status.health != null ? ` (health ${status.health})` : '';
         const totem = status.totemModeActive ? ' | totem mode on' : '';
         const chatGames = status.chatGamesEnabled === false ? ' | chat games off' : '';
-        statusEl.textContent = `online${health}${totem}${chatGames}`;
+        const attackHostiles = status.attackHostilesEnabled ? ' | attacking hostiles' : '';
+        statusEl.textContent = `online${health}${totem}${chatGames}${attackHostiles}`;
         statusEl.className = 'status status-online';
     }
 
     chatGamesToggle.checked = status.chatGamesEnabled === true;
+    attackHostilesToggle.checked = status.attackHostilesEnabled === true;
 };
 
 fetch('/api/log').then((r) => r.text()).then((text) => {
@@ -113,6 +116,14 @@ chatGamesToggle.addEventListener('change', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: chatGamesToggle.checked ? 'enableChatGames' : 'disableChatGames' }),
+    });
+});
+
+attackHostilesToggle.addEventListener('change', () => {
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: attackHostilesToggle.checked ? 'enableAttackHostiles' : 'disableAttackHostiles' }),
     });
 });
 

@@ -34,6 +34,9 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    re-enabled)
 - "Meow, toggle chat games."   -> flips the chat games solver on/off from
                                    whatever it currently is
+- "Meow, toggle attack mode."  -> flips "attack hostile mobs" on/off (see
+                                   notes below) - also a checkbox in the
+                                   control panel
 - "Meow, build <name> at <x> <y> <z>." (or "Meow, build <name> here." to
                                    anchor at the bot's current position
                                    instead) -> loads schematics/<name>.schem
@@ -143,6 +146,25 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
   before giving up and stopping early with however many logs it has.
 - Progress/results are console/log-only, same reasoning as the build
   command above. "Meow, stop." cancels an in-progress gather.
+
+Attack hostile mobs notes ("Meow, toggle attack mode." / control panel
+checkbox):
+- While enabled, checks every 150ms for the nearest hostile mob (zombie,
+  skeleton, creeper, spider, etc.) within 15 blocks and fights it; does
+  nothing if no hostile is in range. Turning it off immediately stops all
+  movement from this behavior.
+- Holds at ~3 blocks from the mob: too far -> walks in, too close -> backs
+  away, right at ~3 blocks -> holds position and waits for the attack
+  cooldown.
+- Uses knockback hits: once the (approximate) attack cooldown has elapsed,
+  it starts sprinting, lands the hit while sprinting (vanilla gives a much
+  stronger knockback on a sprinting hit), then immediately stops sprinting
+  - repeatedly shoving the mob back out to a safe distance rather than
+  letting it close in.
+- The cooldown timer is a fixed ~625ms approximation of vanilla sword
+  timing, since mineflayer doesn't expose the real per-weapon attack
+  cooldown - actual timing may be slightly off for non-sword weapons or
+  bare-handed fighting.
 - Also stops itself automatically if a land-protection plugin replies with
   a "you're not allowed to break blocks here"/"don't have permission to
   break" message (e.g. WorldGuard), instead of uselessly retrying the same

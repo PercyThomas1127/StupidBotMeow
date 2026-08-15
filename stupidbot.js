@@ -199,6 +199,8 @@ function connect() {
     bot.loadPlugin(pathfinder)
 
     let totemModeActive = false
+    let attackHostilesEnabled = false
+    let attackHostilesInterval = null
 
     const EQUIP_RETRY_DELAY_MS = 1500
     const EQUIP_MAX_ATTEMPTS = 3
@@ -577,6 +579,78 @@ function connect() {
         console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
     }
 
+    // "attack hostile mob" - while enabled, holds at HOSTILE_HOLD_DISTANCE
+    // from the nearest hostile within HOSTILE_ATTACK_RANGE and periodically
+    // lands a sprint-knockback hit: once the (approximate) attack cooldown
+    // has elapsed, sprint in, hit, then immediately stop sprinting - vanilla
+    // knockback is much stronger on a sprinting hit, so this pattern keeps
+    // the mob repeatedly shoved back out to a safe distance instead of
+    // letting it close in and land its own attack.
+    const HOSTILE_ATTACK_RANGE = 15
+    const HOSTILE_HOLD_DISTANCE = 3
+    const HOSTILE_DISTANCE_TOLERANCE = 0.5
+    // core mineflayer doesn't expose the real per-item attack cooldown timer
+    // (that's tracked client-side off attack-speed attributes) - 625ms is a
+    // fixed approximation matching vanilla's sword cooldown (~1.6 hits/sec)
+    const HOSTILE_ATTACK_COOLDOWN_MS = 625
+    const HOSTILE_ATTACK_TICK_MS = 150
+    let lastHostileAttackTime = 0
+
+    const stopCombatMovement = () => {
+        bot.setControlState('forward', false)
+        bot.setControlState('back', false)
+        bot.setControlState('sprint', false)
+    }
+
+    const findNearestHostile = () => {
+        if (!bot.entity) return null
+        let nearest = null
+        let nearestDistance = Infinity
+        for (const entity of Object.values(bot.entities)) {
+            if (entity.type !== 'hostile' || !entity.position) continue
+            const distance = bot.entity.position.distanceTo(entity.position)
+            if (distance <= HOSTILE_ATTACK_RANGE && distance < nearestDistance) {
+                nearest = entity
+                nearestDistance = distance
+            }
+        }
+        return nearest ? { entity: nearest, distance: nearestDistance } : null
+    }
+
+    const attackHostilesTick = () => {
+        if (!attackHostilesEnabled || !bot.entity) return
+        const target = findNearestHostile()
+        if (!target) {
+            stopCombatMovement()
+            return
+        }
+
+        const { entity: mob, distance } = target
+        bot.lookAt(mob.position.offset(0, (mob.height || 1.8) / 2, 0)).catch(() => {})
+
+        const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
+        if (cooldownReady && distance <= HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
+            bot.setControlState('sprint', true)
+            bot.setControlState('forward', true)
+            bot.attack(mob)
+            lastHostileAttackTime = Date.now()
+            setTimeout(() => {
+                bot.setControlState('sprint', false)
+                bot.setControlState('forward', false)
+            }, 150)
+        } else if (distance > HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
+            bot.setControlState('sprint', false)
+            bot.setControlState('back', false)
+            bot.setControlState('forward', true)
+        } else if (distance < HOSTILE_HOLD_DISTANCE - HOSTILE_DISTANCE_TOLERANCE) {
+            bot.setControlState('sprint', false)
+            bot.setControlState('forward', false)
+            bot.setControlState('back', true)
+        } else {
+            stopCombatMovement()
+        }
+    }
+
     // some networks (e.g. ggsmp.net) put you in a lobby after login and
     // require right-clicking an NPC to actually enter the main server -
     // only used when server-config.json sets hubNpcName for this host
@@ -667,6 +741,8 @@ function connect() {
 
         bot.pathfinder.setMovements(new Movements(bot))
 
+        attackHostilesInterval = setInterval(attackHostilesTick, HOSTILE_ATTACK_TICK_MS)
+
         bot.inventory.on('updateSlot', (slot, oldItem, newItem) => {
             if (totemModeActive && slot === bot.getEquipmentDestSlot('off-hand')) {
                 const hadTotem = oldItem && oldItem.name === 'totem_of_undying'
@@ -709,7 +785,7 @@ function connect() {
         if (!process.send) return
         process.send({
             type: 'status',
-            data: { connected: !!bot.entity, health: bot.health, totemModeActive, chatGamesEnabled }
+            data: { connected: !!bot.entity, health: bot.health, totemModeActive, chatGamesEnabled, attackHostilesEnabled }
         })
     }
 
@@ -750,6 +826,23 @@ function connect() {
         toggleChatGames: () => {
             chatGamesEnabled = !chatGamesEnabled
             bot.chat(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
+            reportStatus()
+        },
+        enableAttackHostiles: () => {
+            attackHostilesEnabled = true
+            bot.chat('Attack hostile mobs enabled.')
+            reportStatus()
+        },
+        disableAttackHostiles: () => {
+            attackHostilesEnabled = false
+            stopCombatMovement()
+            bot.chat('Attack hostile mobs disabled.')
+            reportStatus()
+        },
+        toggleAttackHostiles: () => {
+            attackHostilesEnabled = !attackHostilesEnabled
+            if (!attackHostilesEnabled) stopCombatMovement()
+            bot.chat(`Attack hostile mobs ${attackHostilesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },
         walkToMe: (username) => {
@@ -866,6 +959,8 @@ function connect() {
             actions.disableChatGames()
         } else if (isFromOperator(message) && message.includes('Meow, toggle chat games.')) {
             actions.toggleChatGames()
+        } else if (isFromOperator(message) && message.includes('Meow, toggle attack mode.')) {
+            actions.toggleAttackHostiles()
         } else if (isFromOperator(message) && message.includes('Meow, list entities.')) {
             actions.listEntities()
         } else if (isFromOperator(message)) {
@@ -896,6 +991,7 @@ function connect() {
     bot.on('end', (reason) => {
         console.log('END', reason)
         log('END', reason)
+        if (attackHostilesInterval) clearInterval(attackHostilesInterval)
         if (process.send) process.send({ type: 'status', data: { connected: false } })
         scheduleReconnect(`end: ${reason}`, disconnectDelay())
     })
