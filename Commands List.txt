@@ -34,10 +34,13 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    re-enabled)
 - "Meow, toggle chat games."   -> flips the chat games solver on/off from
                                    whatever it currently is
-- "Meow, build <name> at <x> <y> <z>." -> loads schematics/<name>.schem (or
-                                   <name>.litematic) and builds it with that
-                                   corner as the anchor (walks to each block,
-                                   equips the matching item, and places it -
+- "Meow, build <name> at <x> <y> <z>." (or "Meow, build <name> here." to
+                                   anchor at the bot's current position
+                                   instead) -> loads schematics/<name>.schem
+                                   (or <name>.litematic) and builds it with
+                                   that corner as the anchor (walks to each
+                                   block, equips the matching item, and
+                                   places it -
                                    see notes below)
 - "Meow, list entities."       -> bot lists every nearby entity (type, name,
                                    display name, position, distance) to the

@@ -333,12 +333,13 @@ function connect() {
     let buildCancelled = false
 
     const buildSchematic = async (payload) => {
-        const match = payload && payload.match(/^(\S+)\s+at\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\.?$/i)
-        if (!match) {
-            bot.chat('Usage: Meow, build <name> at <x> <y> <z>.')
+        const hereMatch = payload && payload.match(/^(\S+)\s+here\.?$/i)
+        const atMatch = payload && payload.match(/^(\S+)\s+at\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\.?$/i)
+        if (!hereMatch && !atMatch) {
+            bot.chat('Usage: Meow, build <name> at <x> <y> <z>. (or "Meow, build <name> here.")')
             return
         }
-        const [, name, xStr, yStr, zStr] = match
+        const name = hereMatch ? hereMatch[1] : atMatch[1]
 
         const schematic = await schematicBuilder.loadSchematic(name).catch(err => {
             log('BUILD_LOAD_ERROR', err.message)
@@ -349,7 +350,9 @@ function connect() {
             return
         }
 
-        const anchor = { x: parseInt(xStr, 10), y: parseInt(yStr, 10), z: parseInt(zStr, 10) }
+        const anchor = hereMatch
+            ? { x: Math.floor(bot.entity.position.x), y: Math.floor(bot.entity.position.y), z: Math.floor(bot.entity.position.z) }
+            : { x: parseInt(atMatch[2], 10), y: parseInt(atMatch[3], 10), z: parseInt(atMatch[4], 10) }
         const plan = schematicBuilder.buildPlan(schematic, anchor)
         buildCancelled = false
         bot.chat(`Building ${name} (${plan.length} blocks)...`)
