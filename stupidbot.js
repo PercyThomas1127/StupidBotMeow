@@ -660,6 +660,15 @@ function connect() {
         bot.respawn()
     })
 
+    // some hub NPCs open a server-selector GUI instead of teleporting
+    // directly on interact - log what shows up so we can tell the
+    // difference from a click that silently did nothing
+    bot.on('windowOpen', (window) => {
+        const items = window.slots.filter(Boolean).map(item => ({ slot: item.slot, name: item.name, count: item.count }))
+        log('WINDOW_OPEN', { title: window.title, items })
+        console.log('[WINDOW_OPEN]', JSON.stringify(window.title), items)
+    })
+
     bot.on('kicked', (reason) => {
         console.log('KICKED', reason)
         log('KICKED', reason)
