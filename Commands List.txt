@@ -61,7 +61,10 @@ Automatic (no chat trigger needed):
   most hunger (ranked by raw hunger points, not saturation/duration) and
   keeps eating until full. No toggle - always on. Doesn't avoid "risky"
   foods like rotten_flesh (chance of the Hunger effect) - it's ranked
-  purely by how much hunger it restores, same as anything else.
+  purely by how much hunger it restores, same as anything else. "Attack
+  hostile mobs" waits for an in-progress meal to finish instead of
+  interrupting it to grab a weapon - eating requires continuously holding
+  the food item, so switching mid-bite would cancel it anyway.
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
   it, replacing whatever's currently worn in that slot, and drops the old
   piece on the ground. Only works if the picked-up armor lands in the

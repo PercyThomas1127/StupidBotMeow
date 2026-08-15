@@ -801,7 +801,11 @@ function connect() {
     }
 
     const attackHostilesTick = () => {
-        if (!attackHostilesEnabled || !bot.entity) return
+        // don't interrupt an in-progress meal - eating requires continuously
+        // holding the food item, so switching to a weapon mid-bite would
+        // cancel it. Combat simply waits until autoEatTick finishes (it's a
+        // few seconds at most) rather than fighting over the held item.
+        if (!attackHostilesEnabled || !bot.entity || autoEating) return
         const target = findNearestHostile()
         if (!target) {
             stopFollowing()
