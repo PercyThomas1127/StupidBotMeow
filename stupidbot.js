@@ -154,7 +154,16 @@ const recordChatGameLine = (message) => {
 const RECONNECT_DELAY_MS = 5000;
 const QUICK_FAILURE_THRESHOLD_MS = 10000;
 const STALE_SESSION_RECONNECT_DELAY_MS = 40000;
+const MAX_RECONNECT_DELAY_MS = 10 * 60 * 1000;
 let reconnecting = false;
+// ggsmp.net's "internal error"/instant kicks tend to come in bursts, which
+// looks like the network rate-limiting or flagging accounts that reconnect
+// too often in a short window - backing off harder on each consecutive
+// quick kick (instead of always retrying at the same fixed pace) avoids
+// digging that hole deeper. Resets once a connection survives past the
+// quick-failure threshold, so a single flaky kick doesn't permanently slow
+// down future reconnects.
+let consecutiveQuickFailures = 0;
 
 const scheduleReconnect = (reason, delay) => {
     if (reconnecting) return;
@@ -169,9 +178,16 @@ const scheduleReconnect = (reason, delay) => {
 
 function connect() {
     const connectStartedAt = Date.now();
-    const disconnectDelay = () => (Date.now() - connectStartedAt < QUICK_FAILURE_THRESHOLD_MS)
-        ? STALE_SESSION_RECONNECT_DELAY_MS
-        : RECONNECT_DELAY_MS;
+    const disconnectDelay = () => {
+        const wasQuickFailure = Date.now() - connectStartedAt < QUICK_FAILURE_THRESHOLD_MS;
+        if (!wasQuickFailure) {
+            consecutiveQuickFailures = 0;
+            return RECONNECT_DELAY_MS;
+        }
+        consecutiveQuickFailures++;
+        const delay = STALE_SESSION_RECONNECT_DELAY_MS * Math.pow(2, consecutiveQuickFailures - 1);
+        return Math.min(delay, MAX_RECONNECT_DELAY_MS);
+    };
 
     const bot = mineflayer.createBot({
         host: HOST,
@@ -470,8 +486,13 @@ function connect() {
         console.log('Meow')
         console.log('[VERSION]', bot.version, 'protocol', bot.protocolVersion, 'configured', VERSION)
         if (registeredHosts.has(hostAccountKey(HOST, USERNAME))) {
-            bot.chat('/login smolbrain')
-            enterHubIfConfigured()
+            // a real player takes at least a moment to type a command after
+            // spawning in - sending /login in the same tick as spawn is a
+            // mechanical tell some anti-bot systems watch for
+            setTimeout(() => {
+                bot.chat('/login smolbrain')
+                enterHubIfConfigured()
+            }, 400 + Math.floor(Math.random() * 800))
         } else {
             // brand new server (or new account on a known server): register,
             // then log in shortly after (some auth plugins don't auto-login
