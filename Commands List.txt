@@ -56,6 +56,12 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    hub NPC on a new server
 
 Automatic (no chat trigger needed):
+- Auto-eats: once hunger drops to 8 of the 10 hunger-bar icons (food value
+  16 out of the max 20), switches to whichever carried food restores the
+  most hunger (ranked by raw hunger points, not saturation/duration) and
+  keeps eating until full. No toggle - always on. Doesn't avoid "risky"
+  foods like rotten_flesh (chance of the Hunger effect) - it's ranked
+  purely by how much hunger it restores, same as anything else.
 - Picking up any armor piece (helmet/chestplate/leggings/boots) auto-equips
   it, replacing whatever's currently worn in that slot, and drops the old
   piece on the ground. Only works if the picked-up armor lands in the

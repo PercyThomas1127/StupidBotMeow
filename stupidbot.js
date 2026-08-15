@@ -201,6 +201,7 @@ function connect() {
     let totemModeActive = false
     let attackHostilesEnabled = false
     let attackHostilesInterval = null
+    let autoEatInterval = null
 
     const EQUIP_RETRY_DELAY_MS = 1500
     const EQUIP_MAX_ATTEMPTS = 3
@@ -684,6 +685,44 @@ function connect() {
         console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
     }
 
+    // auto-eat: always on, no toggle - once hunger drops to 8 of the 10
+    // hunger-bar icons (food <= 16 out of the max 20), switches to whatever
+    // carried food restores the most hunger (minecraft-data's foodPoints)
+    // and keeps eating until full. Doesn't avoid "risky" foods like
+    // rotten_flesh (chance of Hunger effect) - it's just ranked by raw
+    // foodPoints like anything else carried.
+    const HUNGER_EAT_THRESHOLD = 16
+    const AUTO_EAT_TICK_MS = 1000
+    let autoEating = false
+    const getMostFulfillingFood = () => {
+        let best = null
+        let bestPoints = -1
+        for (const item of bot.inventory.items()) {
+            const foodInfo = bot.registry.foodsByName[item.name]
+            if (foodInfo && foodInfo.foodPoints > bestPoints) {
+                best = item
+                bestPoints = foodInfo.foodPoints
+            }
+        }
+        return best
+    }
+    const autoEatTick = async () => {
+        if (autoEating || bot.food > HUNGER_EAT_THRESHOLD) return
+        autoEating = true
+        try {
+            while (bot.food < 20 && bot.isAlive) {
+                const food = getMostFulfillingFood()
+                if (!food) break
+                await bot.equip(food, 'hand')
+                await bot.consume()
+            }
+        } catch (err) {
+            log('AUTO_EAT_ERROR', err.message)
+        } finally {
+            autoEating = false
+        }
+    }
+
     // "attack hostile mob" - while enabled, holds at HOSTILE_HOLD_DISTANCE
     // from the nearest hostile within HOSTILE_ATTACK_RANGE and periodically
     // lands a sprint-knockback hit: once the (approximate) attack cooldown
@@ -920,6 +959,7 @@ function connect() {
         bot.pathfinder.setMovements(movements)
 
         attackHostilesInterval = setInterval(attackHostilesTick, HOSTILE_ATTACK_TICK_MS)
+        autoEatInterval = setInterval(autoEatTick, AUTO_EAT_TICK_MS)
 
         bot.inventory.on('updateSlot', (slot, oldItem, newItem) => {
             if (totemModeActive && slot === bot.getEquipmentDestSlot('off-hand')) {
@@ -1175,6 +1215,7 @@ function connect() {
         console.log('END', reason)
         log('END', reason)
         if (attackHostilesInterval) clearInterval(attackHostilesInterval)
+        if (autoEatInterval) clearInterval(autoEatInterval)
         if (process.send) process.send({ type: 'status', data: { connected: false } })
         scheduleReconnect(`end: ${reason}`, disconnectDelay())
     })
