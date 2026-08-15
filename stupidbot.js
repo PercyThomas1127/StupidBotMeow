@@ -629,12 +629,18 @@ function connect() {
             .finally(() => { weaponEquipInProgress = false })
     }
 
+    // minecraft-data classifies slime as type "mob" rather than "hostile"
+    // (all size variants - tiny/small/medium/large - share the same "slime"
+    // entity name, distinguished only by a size metadata property), but
+    // they're hostile in practice, so they're special-cased in here
+    const isHostileTarget = (entity) => entity.type === 'hostile' || entity.name === 'slime'
+
     const findNearestHostile = () => {
         if (!bot.entity) return null
         let nearest = null
         let nearestDistance = Infinity
         for (const entity of Object.values(bot.entities)) {
-            if (entity.type !== 'hostile' || !entity.position) continue
+            if (!isHostileTarget(entity) || !entity.position) continue
             const distance = bot.entity.position.distanceTo(entity.position)
             if (distance <= HOSTILE_ATTACK_RANGE && distance < nearestDistance) {
                 nearest = entity
@@ -658,16 +664,39 @@ function connect() {
 
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
         if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
+            // gate immediately (before the wind-up below) so an overlapping
+            // tick can't re-trigger a second attack while this one is still
+            // winding up
+            lastHostileAttackTime = Date.now()
             bot.setControlState('sprint', true)
             bot.setControlState('forward', true)
-            bot.attack(mob)
-            lastHostileAttackTime = Date.now()
+            // swinging in the same instant as setting sprint/forward doesn't
+            // give the server time to register the sprint state from an
+            // actual movement tick first, so the sprinting-hit knockback
+            // bonus wasn't reliably applying - a short wind-up fixes that
             setTimeout(() => {
-                bot.setControlState('sprint', false)
+                bot.attack(mob)
+                // stop closing distance the instant the hit lands instead of
+                // continuing to push forward for another 150ms, which was
+                // chasing the bot straight back into the mob it just knocked
+                // away (most visible as "creepers don't get knocked back
+                // far enough" - the mob was knocked back fine, we just
+                // immediately closed the gap again)
                 bot.setControlState('forward', false)
-            }, 150)
+                bot.setControlState('sprint', false)
+                if (mob.name === 'creeper') {
+                    // extra safety margin - creepers explode on proximity,
+                    // so maximize separation after every hit instead of
+                    // just holding position
+                    bot.setControlState('back', true)
+                    setTimeout(() => bot.setControlState('back', false), 300)
+                }
+            }, 100)
         } else if (distance > HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
-            bot.setControlState('sprint', false)
+            // sprint while closing distance too, not just during the attack
+            // lunge - otherwise closing a large gap (e.g. chasing a
+            // skeleton trying to keep its range) happens at walking speed
+            bot.setControlState('sprint', true)
             bot.setControlState('back', false)
             bot.setControlState('forward', true)
         } else if (distance < HOSTILE_HOLD_DISTANCE - HOSTILE_DISTANCE_TOLERANCE) {
@@ -887,6 +916,11 @@ function connect() {
         stopBuilding: () => { buildCancelled = true },
         gatherWood: (payload) => gatherWood(payload),
         stopGatheringWood: () => { gatherCancelled = true },
+        reportInventory: () => {
+            const items = bot.inventory.items().map((i) => ({ name: i.name, count: i.count }))
+            log('INVENTORY_REPORT', { heldItem: bot.heldItem && bot.heldItem.name, items })
+            console.log('[INVENTORY]', 'held:', bot.heldItem ? bot.heldItem.name : 'nothing', '| items:', items)
+        },
         listEntities: () => {
             // holograms (text_display, or armor_stand on older versions) carry
             // the visible label as entity metadata rather than a real name -

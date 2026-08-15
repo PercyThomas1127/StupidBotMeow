@@ -158,17 +158,31 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
 Attack hostile mobs notes ("Meow, toggle attack mode." / control panel
 checkbox):
 - While enabled, checks every 150ms for the nearest hostile mob (zombie,
-  skeleton, creeper, spider, etc.) within 15 blocks and fights it; does
-  nothing if no hostile is in range. Turning it off immediately stops all
-  movement from this behavior.
-- Holds at ~3 blocks from the mob: too far -> walks in, too close -> backs
-  away, right at ~3 blocks -> holds position and waits for the attack
-  cooldown.
+  skeleton, creeper, spider, slime, etc. - anything minecraft-data classifies
+  as type "hostile", plus slimes specifically since they're classified as
+  type "mob" instead) within 15 blocks and fights it; does nothing if no
+  hostile is in range. Turning it off immediately stops all movement from
+  this behavior.
+- Equips whatever sword is available before an axe (axes remain the tool of
+  choice for wood-gathering) - re-checked every combat tick, so it'll switch
+  weapons mid-fight if inventory changes. Live-tested by giving the bot a
+  sword only, an axe only, and both together (with the axe already held) -
+  correctly used the sword whenever one was available.
+- Holds at ~3 blocks from the mob: too far -> sprints in (so it doesn't fall
+  behind a mob trying to keep its range, e.g. a fleeing skeleton), too close
+  -> backs away, right at ~3 blocks -> holds position and waits for the
+  attack cooldown. Only ever swings at 3 blocks or closer, never while still
+  closing in.
 - Uses knockback hits: once the (approximate) attack cooldown has elapsed,
-  it starts sprinting, lands the hit while sprinting (vanilla gives a much
-  stronger knockback on a sprinting hit), then immediately stops sprinting
-  - repeatedly shoving the mob back out to a safe distance rather than
-  letting it close in.
+  it starts sprinting, waits briefly for that to register server-side (an
+  instant sprint+swing wasn't reliably getting the knockback bonus), lands
+  the hit while sprinting (vanilla gives much stronger knockback on a
+  sprinting hit), then immediately stops closing distance - previously it
+  kept walking forward for another 150ms after the swing, chasing right back
+  into the mob it had just knocked away (most visible against creepers,
+  where it looked like the knockback wasn't pushing them back far enough).
+  Creepers specifically also get an extra backward retreat after each hit
+  for additional safety margin against their explosion.
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or
