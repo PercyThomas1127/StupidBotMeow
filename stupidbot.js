@@ -763,6 +763,14 @@ function connect() {
         }
         if (isHudMessage) lastHudMessage = message
 
+        // land-protection plugins (WorldGuard etc.) send a message like this
+        // instead of silently rejecting the dig - bail out of an in-progress
+        // gather immediately rather than uselessly retrying the same spot
+        if (/not allowed to break|don't have permission to break/i.test(message)) {
+            if (!gatherCancelled) console.log('[GATHER_WOOD] Blocked from breaking blocks here, stopping.')
+            gatherCancelled = true
+        }
+
         if (message.includes('Meow, tp to me.')) {
             actions.tpToMe()
         } else if (message.includes('Meow, tp me to you.')) {

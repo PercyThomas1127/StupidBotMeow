@@ -132,6 +132,10 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
   before giving up and stopping early with however many logs it has.
 - Progress/results are console/log-only, same reasoning as the build
   command above. "Meow, stop." cancels an in-progress gather.
+- Also stops itself automatically if a land-protection plugin replies with
+  a "you're not allowed to break blocks here"/"don't have permission to
+  break" message (e.g. WorldGuard), instead of uselessly retrying the same
+  protected spot.
 - Places blocks bottom-up (lowest Y first) for basic support, but doesn't
   reason about block orientation/rotation (stairs, doors, etc. may place
   facing the wrong way).
