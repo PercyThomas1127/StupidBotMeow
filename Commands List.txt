@@ -120,6 +120,10 @@ Schematic builder notes/limitations (schematic-builder.js):
   to avoid revealing bot activity and because rapid-fire status messages can
   hit the server's chat rate limit ("You can only send messages every 3.0
   seconds") and get silently dropped.
+- Places blocks bottom-up (lowest Y first) for basic support, but doesn't
+  reason about block orientation/rotation (stairs, doors, etc. may place
+  facing the wrong way).
+- "Meow, stop." cancels an in-progress build (as well as any pathfinding).
 
 Wood gathering notes/limitations ("Meow, gather wood (n)."):
 - Equips any item ending in "_axe" it's already carrying (no crafting - if
@@ -146,6 +150,10 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
   before giving up and stopping early with however many logs it has.
 - Progress/results are console/log-only, same reasoning as the build
   command above. "Meow, stop." cancels an in-progress gather.
+- Also stops itself automatically if a land-protection plugin replies with
+  a "you're not allowed to break blocks here"/"don't have permission to
+  break" message (e.g. WorldGuard), instead of uselessly retrying the same
+  protected spot.
 
 Attack hostile mobs notes ("Meow, toggle attack mode." / control panel
 checkbox):
@@ -165,11 +173,21 @@ checkbox):
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or
   bare-handed fighting.
-- Also stops itself automatically if a land-protection plugin replies with
-  a "you're not allowed to break blocks here"/"don't have permission to
-  break" message (e.g. WorldGuard), instead of uselessly retrying the same
-  protected spot.
-- Places blocks bottom-up (lowest Y first) for basic support, but doesn't
-  reason about block orientation/rotation (stairs, doors, etc. may place
-  facing the wrong way).
-- "Meow, stop." cancels an in-progress build (as well as any pathfinding).
+
+Local test server (for testing without ggsmp.net's flaky connection):
+- A Paper 1.21.11 server lives at ~/mc-test-server (outside this repo -
+  large jar + generated world data, not meant to be committed). Start it
+  with: cd ~/mc-test-server && java -Xmx2G -Xms1G -jar paper-1.21.11.jar
+  --nogui
+- It's configured offline-mode=false (required - this bot doesn't do real
+  Microsoft auth) and generates a superflat world in a forest biome
+  (features enabled) so trees spawn naturally for wood-gathering tests,
+  plus normal mob spawning for combat tests. spawn-protection is 0 so the
+  bot can dig/build near spawn.
+- To point the bot at it: copy server-config.local.json over
+  server-config.json (or use the control panel's Save Server fields:
+  host=localhost, port=25565, leave hubNpcName blank - no lobby NPC needed
+  locally). Copy server-config.json back from the ggsmp.net settings (or
+  re-enter them) to switch back.
+- Stop the server with a graceful `kill <pid>` (it saves on SIGTERM) rather
+  than kill -9, to avoid corrupting world data.
