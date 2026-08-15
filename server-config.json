@@ -1,6 +1,6 @@
 {
-  "host": "ggsmp.net",
+  "host": "localhost",
   "port": 25565,
-  "username": "PercyThomas1128",
-  "hubNpcName": "GG SMP"
+  "username": "TestBot",
+  "hubNpcName": null
 }

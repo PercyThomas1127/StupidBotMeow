@@ -437,6 +437,11 @@ function connect() {
             const block = bot.findBlock({
                 matching: (b) => {
                     if (matchName ? b.name !== matchName : !isLogBlock(b)) return false
+                    // findBlock does a fast palette pre-check per chunk section using a
+                    // synthetic Block.fromStateId() with no real position attached - only
+                    // the name/type matters there; position-based exclusions only apply
+                    // once a real per-block candidate (with a position) is being checked
+                    if (!b.position) return true
                     if (unreachable.has(b.position.toString())) return false
                     if (rejectedOrigins.some((p) => b.position.distanceTo(p) < NON_TREE_EXCLUSION_RADIUS)) return false
                     return true
