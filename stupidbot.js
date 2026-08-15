@@ -594,17 +594,39 @@ function connect() {
     const HOSTILE_ATTACK_RANGE = 15
     const HOSTILE_HOLD_DISTANCE = 3
     const HOSTILE_DISTANCE_TOLERANCE = 0.5
+    // hard cap - never swing regardless of hold-distance tolerance, so the
+    // bot doesn't attempt an attack while still closing in
+    const HOSTILE_MELEE_RANGE = 3
     // core mineflayer doesn't expose the real per-item attack cooldown timer
     // (that's tracked client-side off attack-speed attributes) - 625ms is a
     // fixed approximation matching vanilla's sword cooldown (~1.6 hits/sec)
     const HOSTILE_ATTACK_COOLDOWN_MS = 625
     const HOSTILE_ATTACK_TICK_MS = 150
     let lastHostileAttackTime = 0
+    let weaponEquipInProgress = false
 
     const stopCombatMovement = () => {
         bot.setControlState('forward', false)
         bot.setControlState('back', false)
         bot.setControlState('sprint', false)
+    }
+
+    // swords take priority over axes for combat - axes are the tool of
+    // choice for wood-gathering (see gatherWood above) but deal knockback
+    // combat is best fought with whatever sword is available, falling back
+    // to an axe only if no sword is carried
+    const getBestMeleeWeapon = () => {
+        const items = bot.inventory.items()
+        return items.find((item) => item.name.endsWith('_sword')) || items.find((item) => item.name.endsWith('_axe')) || null
+    }
+    const ensureBestWeaponEquipped = () => {
+        if (weaponEquipInProgress) return
+        const weapon = getBestMeleeWeapon()
+        if (!weapon || (bot.heldItem && bot.heldItem.type === weapon.type)) return
+        weaponEquipInProgress = true
+        bot.equip(weapon, 'hand')
+            .catch((err) => log('ATTACK_HOSTILES_ERROR', err.message))
+            .finally(() => { weaponEquipInProgress = false })
     }
 
     const findNearestHostile = () => {
@@ -632,9 +654,10 @@ function connect() {
 
         const { entity: mob, distance } = target
         bot.lookAt(mob.position.offset(0, (mob.height || 1.8) / 2, 0)).catch(() => {})
+        ensureBestWeaponEquipped()
 
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
-        if (cooldownReady && distance <= HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
+        if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
             bot.setControlState('sprint', true)
             bot.setControlState('forward', true)
             bot.attack(mob)
