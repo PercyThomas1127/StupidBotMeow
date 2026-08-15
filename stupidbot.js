@@ -723,18 +723,13 @@ function connect() {
         }
     }
 
-    // "attack hostile mob" - while enabled, holds at HOSTILE_HOLD_DISTANCE
-    // from the nearest hostile within HOSTILE_ATTACK_RANGE and periodically
-    // lands a sprint-knockback hit: once the (approximate) attack cooldown
-    // has elapsed, sprint in, hit, then immediately stop sprinting - vanilla
-    // knockback is much stronger on a sprinting hit, so this pattern keeps
-    // the mob repeatedly shoved back out to a safe distance instead of
-    // letting it close in and land its own attack.
+    // "attack hostile mob" - while enabled, chases the nearest hostile
+    // within HOSTILE_ATTACK_RANGE via real pathfinding (see attackHostilesTick
+    // below) and swings once in melee range and off cooldown, with a
+    // best-effort sprint nudge right before the hit for vanilla's
+    // sprint-knockback bonus.
     const HOSTILE_ATTACK_RANGE = 15
-    const HOSTILE_HOLD_DISTANCE = 3
-    const HOSTILE_DISTANCE_TOLERANCE = 0.5
-    // hard cap - never swing regardless of hold-distance tolerance, so the
-    // bot doesn't attempt an attack while still closing in
+    // never swing beyond this, regardless of what pathfinder is doing
     const HOSTILE_MELEE_RANGE = 3
     // core mineflayer doesn't expose the real per-item attack cooldown timer
     // (that's tracked client-side off attack-speed attributes) - 625ms is a
@@ -809,7 +804,6 @@ function connect() {
         const target = findNearestHostile()
         if (!target) {
             stopFollowing()
-            stopCombatMovement()
             return
         }
 
@@ -817,64 +811,30 @@ function connect() {
         bot.lookAt(mob.position.offset(0, (mob.height || 1.8) / 2, 0)).catch(() => {})
         ensureBestWeaponEquipped()
 
+        // pathfinder owns ALL movement now, not just the long-range approach -
+        // a manual "sprint into range" lunge for the final stretch got stuck
+        // whenever that stretch crossed a 2-block obstacle diagonally, since
+        // blind forward+jump has no way to route around anything jumping
+        // can't clear. GoalFollow's real A* handles that the same way it
+        // already handles 1-block ledges elsewhere in this bot - this trades
+        // away precise "hold at exactly 3 blocks, dash in, retreat after"
+        // choreography for something that doesn't get stuck, which given how
+        // often the manual version got stuck is the right trade for now.
+        if (followingEntityId !== mob.id) {
+            bot.pathfinder.setGoal(new goals.GoalFollow(mob, HOSTILE_MELEE_RANGE), true)
+            followingEntityId = mob.id
+        }
+
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
         if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
-            // take manual control for the precise attack lunge - pathfinder
-            // isn't driving anything during this part
-            stopFollowing()
-            // gate immediately (before the wind-up below) so an overlapping
-            // tick can't re-trigger a second attack while this one is still
-            // winding up
             lastHostileAttackTime = Date.now()
+            // best-effort nudge for the sprint-hit knockback bonus - pathfinder
+            // owns the sprint control state the rest of the time (and may
+            // override this again shortly after), but attacking in the same
+            // synchronous tick gives this a good chance of registering for
+            // this specific swing
             bot.setControlState('sprint', true)
-            bot.setControlState('forward', true)
-            bot.setControlState('jump', true)
-            // swinging in the same instant as setting sprint/forward doesn't
-            // give the server time to register the sprint state from an
-            // actual movement tick first, so the sprinting-hit knockback
-            // bonus wasn't reliably applying - a short wind-up fixes that
-            setTimeout(() => {
-                bot.attack(mob)
-                // stop closing distance the instant the hit lands instead of
-                // continuing to push forward for another 150ms, which was
-                // chasing the bot straight back into the mob it just knocked
-                // away (most visible as "creepers don't get knocked back
-                // far enough" - the mob was knocked back fine, we just
-                // immediately closed the gap again)
-                bot.setControlState('forward', false)
-                bot.setControlState('sprint', false)
-                bot.setControlState('jump', false)
-                if (mob.name === 'creeper') {
-                    // extra safety margin - creepers explode on proximity,
-                    // so maximize separation after every hit instead of
-                    // just holding position
-                    bot.setControlState('back', true)
-                    setTimeout(() => bot.setControlState('back', false), 300)
-                }
-            }, 100)
-        } else if (distance > HOSTILE_HOLD_DISTANCE + HOSTILE_DISTANCE_TOLERANCE) {
-            // let pathfinder handle closing distance instead of blindly
-            // walking forward - GoalFollow does real A* pathing around
-            // obstacles (e.g. a 2-block wall no amount of jumping can clear),
-            // the same way pathfinder already jumps 1-block ledges elsewhere
-            // in this bot, instead of just marching straight at the target
-            // and getting stuck like the raw-control-state version did.
-            // Dynamic (the `true` arg) keeps it updated as the mob moves,
-            // without us needing to re-issue the goal every tick.
-            bot.setControlState('back', false)
-            if (followingEntityId !== mob.id) {
-                bot.pathfinder.setGoal(new goals.GoalFollow(mob, HOSTILE_HOLD_DISTANCE), true)
-                followingEntityId = mob.id
-            }
-        } else if (distance < HOSTILE_HOLD_DISTANCE - HOSTILE_DISTANCE_TOLERANCE) {
-            stopFollowing()
-            bot.setControlState('sprint', false)
-            bot.setControlState('forward', false)
-            bot.setControlState('jump', false)
-            bot.setControlState('back', true)
-        } else {
-            stopFollowing()
-            stopCombatMovement()
+            bot.attack(mob)
         }
     }
 
@@ -1072,13 +1032,17 @@ function connect() {
         },
         disableAttackHostiles: () => {
             attackHostilesEnabled = false
+            stopFollowing()
             stopCombatMovement()
             bot.chat('Attack hostile mobs disabled.')
             reportStatus()
         },
         toggleAttackHostiles: () => {
             attackHostilesEnabled = !attackHostilesEnabled
-            if (!attackHostilesEnabled) stopCombatMovement()
+            if (!attackHostilesEnabled) {
+                stopFollowing()
+                stopCombatMovement()
+            }
             bot.chat(`Attack hostile mobs ${attackHostilesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },

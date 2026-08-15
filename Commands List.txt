@@ -193,31 +193,23 @@ checkbox):
   weapons mid-fight if inventory changes. Live-tested by giving the bot a
   sword only, an axe only, and both together (with the axe already held) -
   correctly used the sword whenever one was available.
-- Holds at ~3 blocks from the mob: too far -> sprints in (so it doesn't fall
-  behind a mob trying to keep its range, e.g. a fleeing skeleton), too close
-  -> backs away, right at ~3 blocks -> holds position and waits for the
-  attack cooldown. Only ever swings at 3 blocks or closer, never while still
-  closing in.
-- Uses knockback hits: once the (approximate) attack cooldown has elapsed,
-  it starts sprinting, waits briefly for that to register server-side (an
-  instant sprint+swing wasn't reliably getting the knockback bonus), lands
-  the hit while sprinting (vanilla gives much stronger knockback on a
-  sprinting hit), then immediately stops closing distance - previously it
-  kept walking forward for another 150ms after the swing, chasing right back
-  into the mob it had just knocked away (most visible against creepers,
-  where it looked like the knockback wasn't pushing them back far enough).
-  Creepers specifically also get an extra backward retreat after each hit
-  for additional safety margin against their explosion.
-- Closing distance to chase a mob uses real pathfinding (mineflayer-
-  pathfinder's GoalFollow, dynamically updated as the mob moves) instead of
-  just walking straight at it - routes around obstacles too tall to jump
-  (e.g. a 2-block wall) the same way a real mob would, rather than getting
-  stuck marching into it. The short attack-lunge itself (the final dash from
-  ~3 blocks to swing) is still manual control, with jump held continuously
-  so it clears any 1-block ledge in that last stretch - a "only jump when
-  actually blocked" version (based on a physics collision flag) didn't
-  reliably catch it in practice, so this trades a bit of unnecessary hopping
-  for something that actually works.
+- Chases the mob using real pathfinding (mineflayer-pathfinder's GoalFollow,
+  dynamically updated as the mob moves) all the way in, rather than walking
+  straight at it - routes around any obstacle a real mob would go around
+  (walls, drops, diagonal corners) instead of getting stuck. Earlier
+  versions tried to hold at an exact ~3-block standoff and hand off to blind
+  manual movement for a final "sprint in and swing" lunge; that manual
+  phase kept getting stuck (couldn't clear 2-block ledges, couldn't route
+  around a diagonal 2-block corner) badly enough that it's been dropped
+  in favor of just letting pathfinder drive the whole approach. This trades
+  away the precise "always exactly 3 blocks away" positioning and the
+  creeper-specific extra retreat-after-hit for something that reliably
+  doesn't get stuck - worth knowing if you specifically need that tighter
+  choreography back.
+- Only ever swings at 3 blocks or closer. Nudges sprint on right before each
+  swing for vanilla's sprinting-hit knockback bonus (pathfinder owns the
+  sprint control state the rest of the time and may override this again
+  shortly after, so it's a best-effort nudge, not a guarantee).
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or
