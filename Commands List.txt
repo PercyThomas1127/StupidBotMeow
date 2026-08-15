@@ -123,6 +123,18 @@ Schematic builder notes/limitations (schematic-builder.js):
 - Places blocks bottom-up (lowest Y first) for basic support, but doesn't
   reason about block orientation/rotation (stairs, doors, etc. may place
   facing the wrong way).
+- When a placement point is too high to path to directly, bridges up to it
+  with its own jump+place loop (using any placeable block it's carrying,
+  preferring one other than what's actually needed for the current
+  placement) rather than mineflayer-pathfinder's own built-in scaffolding,
+  which is disabled entirely - it loses a race between the jump physics and
+  the network round-trip for equipping/placing almost every cycle, making
+  vertical building extremely slow.
+- Any bot.pathfinder.goto() call (used here, in wood gathering, and for hub
+  NPC approach) is wrapped with an 8s timeout that force-stops pathfinder
+  instead of potentially hanging forever - this happened for real during
+  testing (a stuck goto() couldn't even be cancelled by "Meow, stop." since
+  the cancellation flag is only checked between awaits).
 - "Meow, stop." cancels an in-progress build (as well as any pathfinding).
 
 Wood gathering notes/limitations ("Meow, gather wood (n)."):

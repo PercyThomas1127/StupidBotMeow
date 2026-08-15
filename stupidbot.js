@@ -372,6 +372,52 @@ function connect() {
         )
     })
 
+    // custom vertical-bridging loop (jump + place a block underfoot to
+    // climb), used as a fallback when normal pathfinding can't reach a
+    // build position because it's higher than the bot can walk to. Replaces
+    // relying on mineflayer-pathfinder's own built-in scaffolding, which
+    // races the jump's physics against the network round-trip for
+    // equipping/placing and almost always loses it (see gotoWithTimeout
+    // above) - equips the scaffold block once upfront instead of re-equipping
+    // every jump, and fires placeBlock the instant there's enough clearance
+    // (polled every physics tick) rather than gating the whole attempt on a
+    // slower check that only starts once the bot has already begun falling
+    // back down.
+    const findScaffoldItem = (avoidName) => {
+        const items = bot.inventory.items().filter((item) => bot.registry.blocksByName[item.name])
+        return items.find((item) => item.name !== avoidName) || items[0] || null
+    }
+    const BRIDGE_MAX_STEPS = 20
+    const bridgeUp = async (targetY, avoidItemName) => {
+        const scaffold = findScaffoldItem(avoidItemName)
+        if (!scaffold) throw new Error('no scaffolding blocks available to bridge up')
+        await bot.equip(scaffold, 'hand')
+        for (let i = 0; i < BRIDGE_MAX_STEPS && bot.entity.position.y < targetY && !buildCancelled; i++) {
+            const standingOn = bot.entity.position.offset(0, -1, 0).floored()
+            const referenceBlock = bot.blockAt(standingOn)
+            if (!referenceBlock || referenceBlock.boundingBox !== 'block') break
+            bot.setControlState('jump', true)
+            await new Promise((resolve) => {
+                const onTick = () => {
+                    if (bot.entity.position.y - standingOn.y >= 1) {
+                        bot.removeListener('physicsTick', onTick)
+                        resolve()
+                    }
+                }
+                bot.on('physicsTick', onTick)
+            })
+            try {
+                await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0))
+            } catch (err) {
+                log('BRIDGE_ERROR', err.message)
+                break
+            } finally {
+                bot.setControlState('jump', false)
+            }
+        }
+        bot.setControlState('jump', false)
+    }
+
     let buildCancelled = false
 
     const buildSchematic = async (payload) => {
@@ -426,7 +472,16 @@ function connect() {
             }
 
             try {
-                await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                try {
+                    await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                } catch (gotoErr) {
+                    // couldn't path there directly - if it's simply because the
+                    // target is higher than we can reach, bridge up to it
+                    // ourselves and retry once, instead of giving up immediately
+                    if (bot.entity.position.y >= position.y - 1) throw gotoErr
+                    await bridgeUp(position.y, step.blockName)
+                    await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                }
                 const reference = findPlacementReference(position)
                 if (!reference) {
                     skipped++
@@ -828,7 +883,16 @@ function connect() {
         reportStatus()
         bot.on('health', reportStatus)
 
-        bot.pathfinder.setMovements(new Movements(bot))
+        const movements = new Movements(bot)
+        // pathfinder's own built-in scaffolding (jump + place a block underfoot
+        // to climb) has a race between the jump physics and the network
+        // round-trip for equipping/placing that makes it place too late almost
+        // every cycle - disabling it here makes pathfinder fail fast (NoPath)
+        // instead of burning through gotoWithTimeout's full timeout attempting
+        // it, so buildSchematic's own bridgeUp() fallback (see above) kicks in
+        // immediately instead
+        movements.scafoldingBlocks = []
+        bot.pathfinder.setMovements(movements)
 
         attackHostilesInterval = setInterval(attackHostilesTick, HOSTILE_ATTACK_TICK_MS)
 
