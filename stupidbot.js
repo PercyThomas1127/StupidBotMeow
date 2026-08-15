@@ -464,7 +464,13 @@ function connect() {
             if (!block || block.name !== logName) continue
 
             try {
-                await bot.pathfinder.goto(new goals.GoalBreakBlock(pos.x, pos.y, pos.z, bot, { range: 4 }))
+                // GoalBreakBlock is just a thin wrapper around GoalLookAtBlock,
+                // but its isEnd() forgets to forward the `node` argument
+                // (mineflayer-pathfinder@2.4.5, currently latest) - crashes
+                // the whole process with "Cannot read properties of undefined
+                // (reading 'distanceTo')" the moment the bot gets close. Using
+                // GoalLookAtBlock directly sidesteps the buggy wrapper.
+                await bot.pathfinder.goto(new goals.GoalLookAtBlock(pos, bot.world, { reach: 4 }))
                 await bot.dig(block)
                 dug++
                 await new Promise((resolve) => setTimeout(resolve, 300)) // let the dropped item settle/get picked up
