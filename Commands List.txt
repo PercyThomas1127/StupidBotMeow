@@ -79,6 +79,11 @@ Automatic (no chat trigger needed):
   entity sits closest to a nearby armor_stand (these are usually the floating
   nametag/hologram above the NPC's head) - use "Meow, list entities." to spot
   candidates if this heuristic ever picks the wrong one.
+- If the main server restarts while the bot is connected, Velocity-style
+  networks typically fall the bot back to the lobby on the same connection
+  (no kick/reconnect) rather than disconnecting it - the bot detects this
+  and automatically retries the hub NPC search/click again, same as it does
+  right after login.
 - "CHAT GAMES" events: DISABLED BY DEFAULT as of 2026-08-14 - the account
   was banned ("afk farming chat games") for this exact behavior. Use
   "Meow, enable chat games." (or the control panel) to turn it back on at

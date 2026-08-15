@@ -491,7 +491,6 @@ function connect() {
             // mechanical tell some anti-bot systems watch for
             setTimeout(() => {
                 bot.chat('/login smolbrain')
-                enterHubIfConfigured()
             }, 400 + Math.floor(Math.random() * 800))
         } else {
             // brand new server (or new account on a known server): register,
@@ -501,7 +500,6 @@ function connect() {
             markHostRegistered(HOST, USERNAME)
             setTimeout(() => {
                 bot.chat('/login smolbrain')
-                enterHubIfConfigured()
             }, 1500)
         }
         reportStatus()
@@ -524,6 +522,15 @@ function connect() {
             }
         })
     })
+
+    // mineflayer re-emits 'spawn' on every dimension/world change, not just
+    // the first login - this includes the main server restarting, which on
+    // a Velocity network falls the bot back to the lobby on the same
+    // connection (no kick/reconnect, so the once-only login block above
+    // never re-runs). Re-attempting hub entry here catches that: it's a
+    // silent no-op (times out after HUB_NPC_MAX_ATTEMPTS) if we're not
+    // actually back in the lobby, e.g. an ordinary death/respawn in survival.
+    bot.on('spawn', () => enterHubIfConfigured())
 
     const CROUCH_TOGGLE_INTERVAL_MS = 400
 
