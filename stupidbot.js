@@ -574,6 +574,21 @@ function connect() {
         build: (payload) => buildSchematic(payload),
         stopBuilding: () => { buildCancelled = true },
         listEntities: () => {
+            // holograms (text_display, or armor_stand on older versions) carry
+            // the visible label as entity metadata rather than a real name -
+            // reading it lets us tell multiple lookalike NPCs apart instead of
+            // guessing purely from proximity
+            const getHologramText = (e) => {
+                if (!e.metadata || (e.name !== 'text_display' && e.name !== 'armor_stand')) return null
+                const meta = bot.registry.entitiesByName[e.name]
+                if (!meta) return null
+                const index = meta.metadataKeys.indexOf('text') >= 0
+                    ? meta.metadataKeys.indexOf('text')
+                    : meta.metadataKeys.indexOf('custom_name')
+                const raw = index >= 0 ? e.metadata[index] : null
+                if (raw == null) return null
+                return typeof raw === 'string' ? raw : JSON.stringify(raw)
+            }
             const entities = Object.values(bot.entities)
                 .filter(e => e !== bot.entity && e.position)
                 .map(e => ({
@@ -581,6 +596,7 @@ function connect() {
                     name: e.name || null,
                     username: e.username || null,
                     displayName: e.displayName ? e.displayName.toString() : null,
+                    hologramText: getHologramText(e),
                     position: { x: Math.round(e.position.x), y: Math.round(e.position.y), z: Math.round(e.position.z) },
                     distance: bot.entity ? +e.position.distanceTo(bot.entity.position).toFixed(1) : null,
                 }))
@@ -588,7 +604,7 @@ function connect() {
             log('ENTITY_REPORT', { count: entities.length, entities })
             console.log(`[ENTITIES] ${entities.length} nearby:`)
             entities.forEach(e => {
-                const label = e.displayName || e.username || e.name || '?'
+                const label = e.hologramText || e.displayName || e.username || e.name || '?'
                 console.log(`  [${e.type}] "${label}" @ (${e.position.x},${e.position.y},${e.position.z}) dist=${e.distance}`)
             })
             bot.chat(`Found ${entities.length} nearby entities, check console for details.`)
