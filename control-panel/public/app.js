@@ -136,3 +136,21 @@ document.getElementById('build-btn').addEventListener('click', () => {
         body: JSON.stringify({ name: 'build', payload: input.value }),
     });
 });
+
+document.getElementById('gather-wood-btn').addEventListener('click', () => {
+    const input = document.getElementById('gather-wood-input');
+    if (!input.value.trim()) return;
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'gatherWood', payload: input.value }),
+    });
+});
+
+document.getElementById('stop-gather-wood-btn').addEventListener('click', () => {
+    fetch('/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'stopGatheringWood' }),
+    });
+});

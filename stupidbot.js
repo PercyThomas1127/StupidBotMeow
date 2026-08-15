@@ -417,6 +417,105 @@ function connect() {
         console.log(`[BUILD] Build complete: ${placed} placed, ${skipped} skipped.`)
     }
 
+    let gatherCancelled = false
+    const isLogBlock = (block) => !!block && (block.name.endsWith('_log') || block.name.endsWith('_stem'))
+
+    // polls for a matching tree rather than a single findBlock call, since
+    // the target may not be in a loaded chunk yet or may not exist at all -
+    // gives up (returns null) after timeoutMs instead of searching forever
+    const TREE_SEARCH_POLL_MS = 2000
+    const findTree = async (matchName, timeoutMs) => {
+        const deadline = Date.now() + timeoutMs
+        while (Date.now() < deadline) {
+            if (gatherCancelled) return null
+            const block = bot.findBlock({
+                matching: (b) => matchName ? b.name === matchName : isLogBlock(b),
+                maxDistance: 48,
+            })
+            if (block) return block
+            await new Promise((resolve) => setTimeout(resolve, TREE_SEARCH_POLL_MS))
+        }
+        return null
+    }
+
+    // flood-fills every connected log block of the same type starting from
+    // the found tree (trunk plus any log-only branches) and chops them one
+    // at a time, breaking off early the moment targetCount is reached rather
+    // than finishing whatever's left of the current tree
+    const LOG_NEIGHBOR_OFFSETS = [
+        new Vec3(1, 0, 0), new Vec3(-1, 0, 0),
+        new Vec3(0, 1, 0), new Vec3(0, -1, 0),
+        new Vec3(0, 0, 1), new Vec3(0, 0, -1),
+    ]
+    // returns the number of logs actually dug this call (normal log
+    // breaking always drops exactly one item per block, so blocks-dug is an
+    // accurate count of logs collected without needing to diff inventory)
+    const chopTree = async (startBlock, remaining) => {
+        const logName = startBlock.name
+        const visited = new Set()
+        const queue = [startBlock.position]
+        visited.add(startBlock.position.toString())
+        let dug = 0
+
+        while (queue.length > 0) {
+            if (gatherCancelled || dug >= remaining) return dug
+            const pos = queue.shift()
+            const block = bot.blockAt(pos)
+            if (!block || block.name !== logName) continue
+
+            try {
+                await bot.pathfinder.goto(new goals.GoalBreakBlock(pos.x, pos.y, pos.z, bot, { range: 4 }))
+                await bot.dig(block)
+                dug++
+                await new Promise((resolve) => setTimeout(resolve, 300)) // let the dropped item settle/get picked up
+            } catch (err) {
+                log('GATHER_WOOD_ERROR', { position: pos, error: err.message })
+                continue
+            }
+
+            for (const offset of LOG_NEIGHBOR_OFFSETS) {
+                const neighborPos = pos.plus(offset)
+                const key = neighborPos.toString()
+                if (visited.has(key)) continue
+                visited.add(key)
+                const neighborBlock = bot.blockAt(neighborPos)
+                if (neighborBlock && neighborBlock.name === logName) queue.push(neighborPos)
+            }
+        }
+        return dug
+    }
+
+    const gatherWood = async (payload) => {
+        const targetCount = parseInt(payload, 10)
+        if (!payload || !Number.isFinite(targetCount) || targetCount <= 0) {
+            bot.chat('Usage: Meow, gather wood (n).')
+            return
+        }
+        gatherCancelled = false
+
+        const axe = bot.inventory.items().find((item) => item.name.endsWith('_axe'))
+        if (axe) await bot.equip(axe, 'hand').catch((err) => log('GATHER_WOOD_ERROR', err.message))
+
+        let collected = 0
+        let targetLogName = null
+        console.log(`[GATHER_WOOD] Looking for a tree (target: ${targetCount} logs)...`)
+
+        while (collected < targetCount) {
+            const tree = await findTree(targetLogName, 30000)
+            if (gatherCancelled) {
+                console.log(`[GATHER_WOOD] Cancelled (${collected}/${targetCount} collected).`)
+                return
+            }
+            if (!tree) {
+                console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after 30s, stopping (${collected}/${targetCount} collected).`)
+                return
+            }
+            targetLogName = tree.name
+            collected += await chopTree(tree, targetCount - collected)
+        }
+        console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
+    }
+
     // some networks (e.g. ggsmp.net) put you in a lobby after login and
     // require right-clicking an NPC to actually enter the main server -
     // only used when server-config.json sets hubNpcName for this host
@@ -604,6 +703,8 @@ function connect() {
         stopWalking: () => bot.pathfinder.setGoal(null),
         build: (payload) => buildSchematic(payload),
         stopBuilding: () => { buildCancelled = true },
+        gatherWood: (payload) => gatherWood(payload),
+        stopGatheringWood: () => { gatherCancelled = true },
         listEntities: () => {
             // holograms (text_display, or armor_stand on older versions) carry
             // the visible label as entity metadata rather than a real name -
@@ -669,12 +770,16 @@ function connect() {
         } else if (message.includes('Meow, stop.')) {
             actions.stopWalking()
             actions.stopBuilding()
+            actions.stopGatheringWood()
         } else if (isFromOperator(message) && message.includes('Meow, walk to me.')) {
             const requester = OPERATORS.find(name => message.includes(name))
             actions.walkToMe(requester)
         } else if (isFromOperator(message) && message.includes('Meow, build ')) {
             const match = message.match(/Meow, build (.+)/)
             if (match) actions.build(match[1])
+        } else if (isFromOperator(message) && message.includes('Meow, gather wood ')) {
+            const match = message.match(/Meow, gather wood \((\d+)\)/)
+            if (match) actions.gatherWood(match[1])
         } else if (isFromOperator(message) && message.includes('Meow, enable totem mode.')) {
             actions.enableTotemMode()
         } else if (isFromOperator(message) && message.includes('Meow, disable totem mode.')) {

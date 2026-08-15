@@ -42,6 +42,10 @@ VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
                                    block, equips the matching item, and
                                    places it -
                                    see notes below)
+- "Meow, gather wood (n)."     -> equips an axe if it has one, then finds and
+                                   chops down trees (collecting the logs)
+                                   until it has n logs or gives up - see
+                                   notes below. "Meow, stop." cancels it.
 - "Meow, list entities."       -> bot lists every nearby entity (type, name,
                                    display name, position, distance) to the
                                    console/log and says how many it found -
@@ -113,6 +117,21 @@ Schematic builder notes/limitations (schematic-builder.js):
   to avoid revealing bot activity and because rapid-fire status messages can
   hit the server's chat rate limit ("You can only send messages every 3.0
   seconds") and get silently dropped.
+
+Wood gathering notes/limitations ("Meow, gather wood (n)."):
+- Equips any item ending in "_axe" it's already carrying (no crafting - if
+  it doesn't have one, it just punches trees by hand instead).
+- Searches for the nearest log-type block (anything ending in "_log" or
+  "_stem") within 48 blocks, giving up after 30 seconds if none is found.
+- Once a tree is found, every log block connected to it (trunk plus any
+  log-only branches) of that exact same wood type is chopped, stopping
+  early the instant n total logs have been collected even if part of the
+  tree is left standing.
+- After finishing (or running out of) one tree, it searches again - but
+  only for the same wood type as the first tree - for up to 30 seconds
+  before giving up and stopping early with however many logs it has.
+- Progress/results are console/log-only, same reasoning as the build
+  command above. "Meow, stop." cancels an in-progress gather.
 - Places blocks bottom-up (lowest Y first) for basic support, but doesn't
   reason about block orientation/rotation (stairs, doors, etc. may place
   facing the wrong way).
