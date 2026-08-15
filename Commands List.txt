@@ -183,6 +183,10 @@ checkbox):
   where it looked like the knockback wasn't pushing them back far enough).
   Creepers specifically also get an extra backward retreat after each hit
   for additional safety margin against their explosion.
+- Jumps over 1-block ledges while approaching/retreating instead of getting
+  stuck against them - players (unlike most mobs) don't auto-step up a full
+  block, so plain forward/back movement alone would just stop dead at any
+  1-block obstacle in the way.
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or

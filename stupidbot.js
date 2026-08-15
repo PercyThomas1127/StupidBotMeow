@@ -609,6 +609,7 @@ function connect() {
         bot.setControlState('forward', false)
         bot.setControlState('back', false)
         bot.setControlState('sprint', false)
+        bot.setControlState('jump', false)
     }
 
     // swords take priority over axes for combat - axes are the tool of
@@ -661,6 +662,13 @@ function connect() {
         const { entity: mob, distance } = target
         bot.lookAt(mob.position.offset(0, (mob.height || 1.8) / 2, 0)).catch(() => {})
         ensureBestWeaponEquipped()
+
+        // players (unlike most mobs) can't auto-step up a full block - forward
+        // movement alone just stops dead against any 1-block ledge. Jump
+        // exactly when actually blocked (rather than holding it constantly)
+        // using prismarine-physics's own collision flag, so approaching or
+        // retreating across uneven terrain doesn't get stuck.
+        bot.setControlState('jump', !!bot.entity.isCollidedHorizontally && bot.entity.onGround)
 
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
         if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
