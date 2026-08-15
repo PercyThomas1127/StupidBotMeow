@@ -355,14 +355,14 @@ function connect() {
             : { x: parseInt(atMatch[2], 10), y: parseInt(atMatch[3], 10), z: parseInt(atMatch[4], 10) }
         const plan = schematicBuilder.buildPlan(schematic, anchor)
         buildCancelled = false
-        bot.chat(`Building ${name} (${plan.length} blocks)...`)
+        console.log(`[BUILD] Building ${name} (${plan.length} blocks)...`)
 
         let placed = 0
         let skipped = 0
         let announcedOutOfMaterials = false
         for (const step of plan) {
             if (buildCancelled) {
-                bot.chat(`Build cancelled (${placed} placed, ${skipped} skipped).`)
+                console.log(`[BUILD] Build cancelled (${placed} placed, ${skipped} skipped).`)
                 return
             }
 
@@ -376,7 +376,7 @@ function connect() {
             const item = bot.inventory.items().find(i => i.name === step.blockName)
             if (!item) {
                 if (!announcedOutOfMaterials) {
-                    bot.chat('Oops I ran out of materials')
+                    console.log('[BUILD] Oops I ran out of materials')
                     announcedOutOfMaterials = true
                 }
                 skipped++
@@ -398,7 +398,7 @@ function connect() {
                 skipped++
             }
         }
-        bot.chat(`Build complete: ${placed} placed, ${skipped} skipped.`)
+        console.log(`[BUILD] Build complete: ${placed} placed, ${skipped} skipped.`)
     }
 
     // some networks (e.g. ggsmp.net) put you in a lobby after login and
@@ -610,7 +610,6 @@ function connect() {
                 const label = e.hologramText || e.displayName || e.username || e.name || '?'
                 console.log(`  [${e.type}] "${label}" @ (${e.position.x},${e.position.y},${e.position.z}) dist=${e.distance}`)
             })
-            bot.chat(`Found ${entities.length} nearby entities, check console for details.`)
         },
     }
 

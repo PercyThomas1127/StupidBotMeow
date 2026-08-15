@@ -99,9 +99,15 @@ Schematic builder notes/limitations (schematic-builder.js):
 - Only *places* blocks - never breaks/clears existing terrain, so pick an
   anchor with clear space, or expect leftover terrain poking through.
 - Skips any block it doesn't already have in its inventory (counts as
-  "skipped" in the completion message) - stock the bot up first. Says "Oops
-  I ran out of materials" the first time this happens in a build (not
-  repeated for every subsequent missing block, to avoid spam).
+  "skipped" in the completion message) - stock the bot up first. Logs "Oops
+  I ran out of materials" to the console (not public chat) the first time
+  this happens in a build (not repeated for every subsequent missing block).
+- Build progress ("Building...", "Oops I ran out of materials", "Build
+  complete: X placed, Y skipped.") and "Meow, list entities." results are
+  only logged to the console/control panel, never sent to public chat - both
+  to avoid revealing bot activity and because rapid-fire status messages can
+  hit the server's chat rate limit ("You can only send messages every 3.0
+  seconds") and get silently dropped.
 - Places blocks bottom-up (lowest Y first) for basic support, but doesn't
   reason about block orientation/rotation (stairs, doors, etc. may place
   facing the wrong way).
