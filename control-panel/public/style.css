@@ -34,6 +34,14 @@ h1 {
 .status-connecting { background: #fff0d9; color: #b8791f; border-color: #ffdba3; }
 .status-online { background: #e3fbe8; color: #2e8b4f; border-color: #bdf0c8; }
 
+.save-status {
+    font-size: 13px;
+    align-self: center;
+}
+.save-status.save-ok { color: #2e8b4f; }
+.save-status.save-warn { color: #b8791f; }
+.save-status.save-error { color: #c2185b; }
+
 .controls {
     display: flex;
     flex-wrap: wrap;

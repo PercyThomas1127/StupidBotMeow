@@ -10,6 +10,8 @@ const serverPortInput = document.getElementById('server-port-input');
 const serverUsernameInput = document.getElementById('server-username-input');
 const serverVersionInput = document.getElementById('server-version-input');
 const serverHubNpcInput = document.getElementById('server-hub-npc-input');
+const saveServerStatus = document.getElementById('save-server-status');
+let botIsRunning = false;
 
 const appendAndScroll = (el, text) => {
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
@@ -18,6 +20,7 @@ const appendAndScroll = (el, text) => {
 };
 
 const setStatus = (status) => {
+    botIsRunning = status.running;
     launchBtn.disabled = status.running;
     shutdownBtn.disabled = !status.running;
 
@@ -82,12 +85,25 @@ document.getElementById('save-server-btn').addEventListener('click', () => {
             version: serverVersionInput.value,
             hubNpcName: serverHubNpcInput.value,
         }),
-    }).then((r) => r.json()).then((config) => {
+    }).then((r) => {
+        if (!r.ok) return r.json().then((body) => Promise.reject(body.error || 'save failed'));
+        return r.json();
+    }).then((config) => {
         serverHostInput.value = config.host;
         serverPortInput.value = config.port;
         serverUsernameInput.value = config.username || '';
         serverVersionInput.value = config.version || '';
         serverHubNpcInput.value = config.hubNpcName || '';
+        // this only takes effect on the *next* launch - the running bot
+        // process (if any) already read the old config at startup and
+        // won't pick this up until it's shut down and relaunched
+        saveServerStatus.textContent = botIsRunning
+            ? 'Saved - shut down and relaunch the bot to apply it (still running on the old server).'
+            : 'Saved.';
+        saveServerStatus.className = `save-status ${botIsRunning ? 'save-warn' : 'save-ok'}`;
+    }).catch((err) => {
+        saveServerStatus.textContent = `Save failed: ${err}`;
+        saveServerStatus.className = 'save-status save-error';
     });
 });
 
