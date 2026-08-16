@@ -1043,8 +1043,11 @@ function connect() {
     // actions shared between the in-game chat triggers and the control
     // panel's IPC commands, so both paths do exactly the same thing
     const actions = {
-        tpToMe: () => bot.chat('/tpa VOlcarona_Alt'),
-        tpMeToYou: () => bot.chat('/tpahere VOlcarona_Alt'),
+        // requester defaults to VOlcarona_Alt for the control panel's buttons,
+        // which have no sender to pass in - the in-game chat trigger below
+        // always passes the actual operator who asked
+        tpToMe: (requester) => bot.chat(`/tpa ${requester || 'VOlcarona_Alt'}`),
+        tpMeToYou: (requester) => bot.chat(`/tpahere ${requester || 'VOlcarona_Alt'}`),
         enableTotemMode: () => {
             totemModeActive = true
             crouch(3)
@@ -1204,10 +1207,12 @@ function connect() {
             gatherCancelled = true
         }
 
-        if (message.includes('Meow, tp to me.')) {
-            actions.tpToMe()
-        } else if (message.includes('Meow, tp me to you.')) {
-            actions.tpMeToYou()
+        if (isFromOperator(message) && message.includes('Meow, tp to me.')) {
+            const requester = OPERATORS.find(name => message.includes(name))
+            actions.tpToMe(requester)
+        } else if (isFromOperator(message) && message.includes('Meow, tp me to you.')) {
+            const requester = OPERATORS.find(name => message.includes(name))
+            actions.tpMeToYou(requester)
         } else if (message.includes('Meow, stop.')) {
             actions.stopWalking()
             actions.stopBuilding()

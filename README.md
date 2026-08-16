@@ -36,7 +36,7 @@ The Console panel streams the bot's live output. There are also buttons/inputs f
 
 The bot is controlled either through the control panel buttons or by typing chat messages in-game starting with `"Meow, ..."`. A few examples:
 
-- `Meow, tp to me.` / `Meow, tp me to you.` — teleport requests
+- `Meow, tp to me.` / `Meow, tp me to you.` — teleport requests (operator-only, targets whichever operator sent it)
 - `Meow, gather wood (n).` — chop trees until it has `n` logs
 - `Meow, build <name> at <x> <y> <z>.` (or `Meow, build <name> here.`) — builds a schematic from the `schematics/` folder
 - `Meow, toggle attack mode.` — toggles auto-attacking nearby hostile mobs (on by default)

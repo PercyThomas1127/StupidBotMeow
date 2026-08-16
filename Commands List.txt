@@ -2,11 +2,13 @@ stupidbot Commands List
 ========================
 
 Anyone can say these in chat:
-- "Meow, tp to me."          -> bot sends /tpa VOlcarona_Alt
-- "Meow, tp me to you."      -> bot sends /tpahere VOlcarona_Alt
 - "Meow, stop."              -> bot cancels its current pathfinding goal
 
 VOlcarona_Alt, SpeedStrafe04, or AustrichMC only:
+- "Meow, tp to me."            -> bot sends /tpa <whichever of the three sent
+                                   the message>
+- "Meow, tp me to you."        -> bot sends /tpahere <whichever of the three
+                                   sent the message>
 - "Meow, walk to me."          -> bot pathfinds (walks, no teleport) to
                                    whichever of the three sent the message, if
                                    it can see them (says "Can't see <name>" if
