@@ -11,6 +11,23 @@ const log = (label, detail) => {
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${label} ${JSON.stringify(detail)}\n`);
 };
 
+// last line of defense - the actions dispatcher (see connect()) already
+// catches failures from in-game commands, but interval/event-handler
+// callbacks (attackHostilesTick, autoEatTick, bot.on(...) handlers, etc.)
+// aren't individually wrapped, and modern Node terminates the whole process
+// by default on an uncaught exception or unhandled promise rejection. Given
+// how disruptive that's been in practice (a single failed dig or pathfind
+// silently killing the entire session), logging and continuing beats losing
+// the connection over one bad tick.
+process.on('uncaughtException', (err) => {
+    log('UNCAUGHT_EXCEPTION', err && err.stack || err);
+    console.error('UNCAUGHT_EXCEPTION', err);
+});
+process.on('unhandledRejection', (err) => {
+    log('UNHANDLED_REJECTION', err && err.stack || err);
+    console.error('UNHANDLED_REJECTION', err);
+});
+
 const OPERATORS = ['VOlcarona_Alt', 'SpeedStrafe04', 'AustrichMC'];
 const isFromOperator = (message) => OPERATORS.some(name => message.includes(name));
 
@@ -1100,6 +1117,25 @@ function connect() {
                 console.log(`  [${e.type}] "${label}" @ (${e.position.x},${e.position.y},${e.position.z}) dist=${e.distance}`)
             })
         },
+    }
+
+    // actions are invoked from two places - in-game chat triggers and the
+    // control panel's IPC handler below - and several (gatherWood,
+    // buildSchematic) are async. Calling any of them bare with no catch
+    // meant an unhandled rejection from any failed await inside would crash
+    // the *entire* process, since modern Node terminates by default on
+    // unhandled rejections - one failed pathfind or dig taking down the
+    // whole bot. Wrapping every action here, once, covers both call sites
+    // uniformly instead of patching each one individually.
+    for (const name of Object.keys(actions)) {
+        const original = actions[name]
+        actions[name] = (...args) => {
+            try {
+                return Promise.resolve(original(...args)).catch((err) => log('ACTION_ERROR', { name, error: err.message }))
+            } catch (err) {
+                log('ACTION_ERROR', { name, error: err.message })
+            }
+        }
     }
 
     // only fires when launched via child_process.fork (e.g. by the control
