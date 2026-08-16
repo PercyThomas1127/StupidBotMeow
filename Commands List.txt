@@ -138,7 +138,11 @@ Schematic builder notes/limitations (schematic-builder.js):
   placement) rather than mineflayer-pathfinder's own built-in scaffolding,
   which is disabled entirely - it loses a race between the jump physics and
   the network round-trip for equipping/placing almost every cycle, making
-  vertical building extremely slow.
+  vertical building extremely slow. Each jump has its own 1.5s timeout too -
+  without it, a jump that never gained enough height (blocked from above,
+  misjudged reference block) left jump control state stuck on forever
+  (reported live as the bot floating in place instead of just failing the
+  jump), since the code waiting for it to succeed never gave up.
 - Any bot.pathfinder.goto() call (used here, in wood gathering, and for hub
   NPC approach) is wrapped with an 8s timeout that force-stops pathfinder
   instead of potentially hanging forever - this happened for real during
@@ -210,10 +214,14 @@ checkbox):
   creeper-specific extra retreat-after-hit for something that reliably
   doesn't get stuck - worth knowing if you specifically need that tighter
   choreography back.
-- Only ever swings at 3 blocks or closer. Nudges sprint on right before each
-  swing for vanilla's sprinting-hit knockback bonus (pathfinder owns the
-  sprint control state the rest of the time and may override this again
-  shortly after, so it's a best-effort nudge, not a guarantee).
+- Only ever swings at 3 blocks or closer, and only if the mob is actually
+  visible (bot.entityAtCursor, which raycasts against blocks first) - won't
+  attack through a wall just because a mob is within range on the other
+  side of it, which it previously would (killaura-like behavior, reported
+  live). Nudges sprint on right before each swing for vanilla's
+  sprinting-hit knockback bonus (pathfinder owns the sprint control state
+  the rest of the time and may override this again shortly after, so it's a
+  best-effort nudge, not a guarantee).
 - The cooldown timer is a fixed ~625ms approximation of vanilla sword
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or

@@ -406,6 +406,15 @@ function connect() {
         return items.find((item) => item.name !== avoidName) || items[0] || null
     }
     const BRIDGE_MAX_STEPS = 20
+    // a normal grounded jump clears >1 block of height within a few hundred
+    // ms - if that hasn't happened within this window, something's wrong
+    // (blocked from above, misjudged reference block, stuck) and we should
+    // abort cleanly rather than hold jump forever. Without this, an
+    // unsatisfiable condition meant the promise never resolved, jump control
+    // state stayed permanently on, and the finally block that resets it was
+    // never reached - reported live as the bot "floating" in place instead
+    // of just failing the jump.
+    const BRIDGE_JUMP_TIMEOUT_MS = 1500
     const bridgeUp = async (targetY, avoidItemName) => {
         const scaffold = findScaffoldItem(avoidItemName)
         if (!scaffold) throw new Error('no scaffolding blocks available to bridge up')
@@ -415,22 +424,38 @@ function connect() {
             const referenceBlock = bot.blockAt(standingOn)
             if (!referenceBlock || referenceBlock.boundingBox !== 'block') break
             bot.setControlState('jump', true)
-            await new Promise((resolve) => {
+            const gainedHeight = await new Promise((resolve) => {
+                let settled = false
+                const cleanup = () => {
+                    bot.removeListener('physicsTick', onTick)
+                    clearTimeout(timer)
+                }
                 const onTick = () => {
+                    if (settled) return
                     if (bot.entity.position.y - standingOn.y >= 1) {
-                        bot.removeListener('physicsTick', onTick)
-                        resolve()
+                        settled = true
+                        cleanup()
+                        resolve(true)
                     }
                 }
+                const timer = setTimeout(() => {
+                    if (settled) return
+                    settled = true
+                    cleanup()
+                    resolve(false)
+                }, BRIDGE_JUMP_TIMEOUT_MS)
                 bot.on('physicsTick', onTick)
             })
+            bot.setControlState('jump', false)
+            if (!gainedHeight) {
+                log('BRIDGE_ERROR', 'jump did not gain enough height in time, aborting bridge')
+                break
+            }
             try {
                 await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0))
             } catch (err) {
                 log('BRIDGE_ERROR', err.message)
                 break
-            } finally {
-                bot.setControlState('jump', false)
             }
         }
         bot.setControlState('jump', false)
@@ -847,7 +872,15 @@ function connect() {
         }
 
         const cooldownReady = Date.now() - lastHostileAttackTime >= HOSTILE_ATTACK_COOLDOWN_MS
-        if (cooldownReady && distance <= HOSTILE_MELEE_RANGE) {
+        // distance alone doesn't account for obstructions - without this, the
+        // bot would happily attack a mob standing on the other side of a wall
+        // whenever it's within range, indistinguishable from a killaura cheat.
+        // entityAtCursor raycasts against blocks first to find how far the
+        // view is actually clear, then only returns an entity if it's really
+        // in the (unobstructed) crosshair - bot.lookAt() above updates
+        // entity.yaw/pitch synchronously, so this reflects the look direction
+        // just set, not a stale one from before this tick.
+        if (cooldownReady && distance <= HOSTILE_MELEE_RANGE && bot.entityAtCursor(HOSTILE_MELEE_RANGE) === mob) {
             lastHostileAttackTime = Date.now()
             // best-effort nudge for the sprint-hit knockback bonus - pathfinder
             // owns the sprint control state the rest of the time (and may
