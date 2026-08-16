@@ -781,11 +781,15 @@ function connect() {
             .finally(() => { weaponEquipInProgress = false })
     }
 
-    // minecraft-data classifies slime as type "mob" rather than "hostile"
-    // (all size variants - tiny/small/medium/large - share the same "slime"
-    // entity name, distinguished only by a size metadata property), but
-    // they're hostile in practice, so they're special-cased in here
-    const isHostileTarget = (entity) => entity.type === 'hostile' || entity.name === 'slime'
+    // minecraft-data's "hostile" classification isn't consistent across
+    // versions/schemas - slime is type "mob" everywhere (all size variants
+    // share the "slime" entity name, distinguished only by a size metadata
+    // property), and pillager is specifically type "mob" on older schemas
+    // like 1.16.5 despite being "hostile" on newer ones like 1.21.11 (this
+    // is why pillagers weren't being engaged on play.skeletonmc.com, which
+    // is pinned to 1.16.5) - both are hostile in practice regardless of
+    // what a given version's data says, so they're special-cased in here
+    const isHostileTarget = (entity) => entity.type === 'hostile' || entity.name === 'slime' || entity.name === 'pillager'
 
     const findNearestHostile = () => {
         if (!bot.entity) return null

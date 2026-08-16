@@ -185,11 +185,13 @@ checkbox):
 - On by default (both the bot itself and the control panel checkbox) - use
   "Meow, toggle attack mode." or the checkbox to turn it off.
 - While enabled, checks every 150ms for the nearest hostile mob (zombie,
-  skeleton, creeper, spider, slime, etc. - anything minecraft-data classifies
-  as type "hostile", plus slimes specifically since they're classified as
-  type "mob" instead) within 15 blocks and fights it; does nothing if no
-  hostile is in range. Turning it off immediately stops all movement from
-  this behavior.
+  skeleton, creeper, spider, slime, pillager, etc. - anything minecraft-data
+  classifies as type "hostile", plus slime and pillager specifically since
+  their classification isn't consistent across versions: slime is type "mob"
+  everywhere, and pillager is type "mob" on older schemas like 1.16.5 despite
+  being "hostile" on newer ones like 1.21.11) within 15 blocks and fights it;
+  does nothing if no hostile is in range. Turning it off immediately stops
+  all movement from this behavior.
 - Equips whatever sword is available before an axe (axes remain the tool of
   choice for wood-gathering) - re-checked every combat tick, so it'll switch
   weapons mid-fight if inventory changes. Live-tested by giving the bot a
