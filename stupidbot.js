@@ -199,7 +199,7 @@ function connect() {
     bot.loadPlugin(pathfinder)
 
     let totemModeActive = false
-    let attackHostilesEnabled = false
+    let attackHostilesEnabled = true
     let attackHostilesInterval = null
     let autoEatInterval = null
 

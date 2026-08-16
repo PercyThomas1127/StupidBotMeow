@@ -182,6 +182,8 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
 
 Attack hostile mobs notes ("Meow, toggle attack mode." / control panel
 checkbox):
+- On by default (both the bot itself and the control panel checkbox) - use
+  "Meow, toggle attack mode." or the checkbox to turn it off.
 - While enabled, checks every 150ms for the nearest hostile mob (zombie,
   skeleton, creeper, spider, slime, etc. - anything minecraft-data classifies
   as type "hostile", plus slimes specifically since they're classified as

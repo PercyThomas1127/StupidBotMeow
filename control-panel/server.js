@@ -19,7 +19,7 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 let botProcess = null;
-let lastStatus = { running: false, connected: false, health: null, totemModeActive: false };
+let lastStatus = { running: false, connected: false, health: null, totemModeActive: false, attackHostilesEnabled: true };
 
 const broadcast = (type, data) => {
     const message = JSON.stringify({ type, data });
