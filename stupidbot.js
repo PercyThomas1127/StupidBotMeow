@@ -1090,7 +1090,7 @@ function connect() {
             const getHologramText = (e) => {
                 if (!e.metadata || (e.name !== 'text_display' && e.name !== 'armor_stand')) return null
                 const meta = bot.registry.entitiesByName[e.name]
-                if (!meta) return null
+                if (!meta || !meta.metadataKeys) return null
                 const index = meta.metadataKeys.indexOf('text') >= 0
                     ? meta.metadataKeys.indexOf('text')
                     : meta.metadataKeys.indexOf('custom_name')
