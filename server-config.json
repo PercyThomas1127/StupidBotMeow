@@ -1,7 +1,6 @@
 {
-  "host": "play.skeletonmc.com",
+  "host": "localhost",
   "port": 25565,
-  "username": "MeowMeowNya",
-  "version": null,
-  "hubNpcName": "GG SMP"
+  "username": "TestBot",
+  "hubNpcName": null
 }
