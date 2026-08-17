@@ -21,6 +21,11 @@ const resolveSchematicPath = (name) => {
     return null;
 };
 
+// how often the .schem loading loop below yields to the event loop - see
+// the matching constant/comment in litematic-reader.js for why this exists
+const YIELD_EVERY_N_BLOCKS = 512;
+const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+
 // normalizes both formats to the same shape - { blocks: [{x,y,z,blockName}] }
 // in local coordinates - so buildPlan doesn't need to know which one it got
 const loadSchematic = async (name) => {
@@ -28,12 +33,22 @@ const loadSchematic = async (name) => {
     if (!filePath) return null;
     if (filePath.toLowerCase().endsWith('.litematic')) {
         const litematic = await loadLitematic(filePath);
-        return { blocks: decodeLitematicBlocks(litematic) };
+        return { blocks: await decodeLitematicBlocks(litematic) };
     }
     const buffer = await fs.promises.readFile(filePath);
     const schematic = await Schematic.read(buffer);
     const blocks = [];
-    schematic.forEach((block, pos) => {
+    // prismarine-schematic's forEach does `await cb(block, pos)` per block,
+    // but awaiting a plain (non-async) callback's return value is only a
+    // microtask boundary, not a real yield to the event loop - network I/O
+    // still can't be processed until the whole loop finishes. Making this
+    // callback async and periodically doing a real setImmediate-based await
+    // forces genuine yields into their loop without needing to touch their
+    // code, for the same reason (and with the same live consequence) as the
+    // litematic decoder above.
+    let processed = 0;
+    await schematic.forEach(async (block, pos) => {
+        if (++processed % YIELD_EVERY_N_BLOCKS === 0) await yieldToEventLoop();
         if (!block || block.name === 'air') return;
         blocks.push({ x: pos.x, y: pos.y, z: pos.z, blockName: block.name });
     });

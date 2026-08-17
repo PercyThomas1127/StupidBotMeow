@@ -119,6 +119,19 @@ Automatic (no chat trigger needed):
 Schematic builder notes/limitations (schematic-builder.js):
 - Drop .schem files (Sponge or MCEdit format) or .litematic files
   (Litematica mod format) in schematics/.
+- Loading either format decodes the schematic's full block volume in
+  yielding batches (every 512 blocks) instead of one single synchronous
+  pass - both the .litematic decoder (litematic-reader.js, which also does
+  BigInt bit-array decoding per block, notably slower than plain number
+  math) and prismarine-schematic's .schem loader are fully synchronous
+  with no real event-loop yielding of their own, so a large schematic
+  loaded in one shot could block the process for seconds on a big build.
+  Same class of bug (and same live consequence - a long freeze delays
+  every packet the bot should be sending, which a strict anticheat reads
+  as exactly the timing irregularity its "bad packets" check exists to
+  catch) as the one found and fixed in wood-gathering's tree search, just
+  with a much larger worst case here since there's no search-radius
+  equivalent capping the work in one call.
 - Only *places* blocks - never breaks/clears existing terrain, so pick an
   anchor with clear space, or expect leftover terrain poking through.
 - Skips any block it doesn't already have in its inventory (counts as
