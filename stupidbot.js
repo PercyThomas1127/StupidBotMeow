@@ -610,16 +610,29 @@ function connect() {
     ]
 
     // avoid vandalizing player builds made of log blocks (cabins, fences,
-    // etc.): a real tree always has leaves touching its trunk somewhere, so
-    // walk the chain of connected same-type logs from the found block (up
-    // to NON_TREE_CHAIN_LIMIT logs total, including the starting one)
-    // looking for one with leaves adjacent to it. If none of the chain has
-    // leaves, treat it as a built structure rather than a tree.
+    // etc.): a real tree always has natural leaves touching its trunk
+    // somewhere, so walk the chain of connected same-type logs from the
+    // found block (up to NON_TREE_CHAIN_LIMIT logs total, including the
+    // starting one) looking for one with natural leaves adjacent to it. If
+    // none of the chain has any, treat it as a built structure rather than
+    // a tree.
+    //
+    // "natural" is checked via the leaves block's `persistent` blockstate,
+    // not just its name - hand-placed leaves are always persistent (never
+    // decay), while world-generated leaves are not. Just checking for any
+    // leaves block by name is trivial for a player to defeat (decorate a
+    // log cabin with a few placed leaf blocks and this check would wrongly
+    // treat it as a tree); persistent === false is a signal a normal
+    // survival player can't fake. Treat a missing/unreadable property as
+    // natural rather than rejecting, since not every block/version is
+    // guaranteed to expose it.
     const NON_TREE_CHAIN_LIMIT = 7
     const NON_TREE_EXCLUSION_RADIUS = 7
     const hasAdjacentLeaves = (pos) => LOG_NEIGHBOR_OFFSETS.some((offset) => {
         const neighbor = bot.blockAt(pos.plus(offset))
-        return !!neighbor && neighbor.name.endsWith('leaves')
+        if (!neighbor || !neighbor.name.endsWith('leaves')) return false
+        const properties = neighbor.getProperties && neighbor.getProperties()
+        return !properties || properties.persistent !== true
     })
     const isPartOfRealTree = (startBlock) => {
         const logName = startBlock.name

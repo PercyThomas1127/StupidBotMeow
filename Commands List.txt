@@ -169,13 +169,17 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
   permanently skipped for the rest of that gather instead of being found
   and retried forever as "the nearest tree".
 - Won't vandalize player builds made of log blocks (cabins, fences, etc.):
-  before chopping, it checks whether the found log has leaves touching it;
-  if not, it walks the chain of connected same-type logs (up to 7 total,
-  including the one it found) looking for one with adjacent leaves. If one
-  turns up, it confirms this is a real tree and chops the *original* log
-  found (not the one where leaves were spotted). If none of the 7 has
-  leaves, it's treated as a built structure - that log (and anything within
-  7 blocks of it) is skipped and it searches for a different tree instead.
+  before chopping, it checks whether the found log has *natural* leaves
+  touching it (leaves with the "persistent" blockstate off - hand-placed
+  leaves are always persistent so they never decay, so checking for that
+  distinguishes a real tree from decorative leaves someone placed next to
+  a log build); if not, it walks the chain of connected same-type logs (up
+  to 7 total, including the one it found) looking for one with natural
+  leaves adjacent. If one turns up, it confirms this is a real tree and
+  chops the *original* log found (not the one where leaves were spotted).
+  If none of the 7 has any, it's treated as a built structure - that log
+  (and anything within 7 blocks of it) is skipped and it searches for a
+  different tree instead.
 - After finishing (or running out of) one tree, it searches again - but
   only for the same wood type as the first tree - for up to 10 seconds
   before giving up and stopping early with however many logs it has.
