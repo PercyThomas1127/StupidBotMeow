@@ -381,12 +381,28 @@ function connect() {
     // internally right before placing) and then verifies the raycast
     // actually lands on that same block within real reach, rather than
     // trusting proximity to the target position alone.
-    const PLACEMENT_REACH = 4.5
+    const INTERACTION_REACH = 4.5
     const canReachPlacementFace = async (referenceBlock, faceVector) => {
         const facePoint = referenceBlock.position.offset(0.5 + faceVector.x * 0.5, 0.5 + faceVector.y * 0.5, 0.5 + faceVector.z * 0.5)
         await bot.lookAt(facePoint, true)
-        const hit = bot.blockAtCursor(PLACEMENT_REACH)
+        const hit = bot.blockAtCursor(INTERACTION_REACH)
         return !!hit && hit.position.equals(referenceBlock.position)
+    }
+
+    // same idea, for digging instead of placing: GoalLookAtBlock has its own
+    // internal line-of-sight check for deciding where to stop
+    // (mineflayer-pathfinder/lib/goals.js), but it checks per-axis candidate
+    // faces against the *pathfinding node* position, not necessarily the
+    // bot's actual final stance once physics settles and equip/dig timing
+    // plays out - live-reported reaching through a leaf to break a log
+    // behind it, which is exactly the "x-ray"/reach category of issue
+    // already fixed for attacking and placing. Re-verifying independently
+    // right before dig(), the same way, closes the gap regardless of why
+    // pathfinder's own check let it through.
+    const canReachBlock = async (block) => {
+        await bot.lookAt(block.position.offset(0.5, 0.5, 0.5), true)
+        const hit = bot.blockAtCursor(INTERACTION_REACH)
+        return !!hit && hit.position.equals(block.position)
     }
 
     // bot.pathfinder.goto() can hang indefinitely with no error and no
@@ -737,6 +753,9 @@ function connect() {
                 // (reading 'distanceTo')" the moment the bot gets close. Using
                 // GoalLookAtBlock directly sidesteps the buggy wrapper.
                 await gotoWithTimeout(new goals.GoalLookAtBlock(pos, bot.world, { reach: 4 }))
+                if (!(await canReachBlock(block))) {
+                    throw new Error('log not actually visible/reachable from here (something is in the way)')
+                }
                 await equipCorrectToolFor(block)
                 await bot.dig(block)
                 dug++

@@ -206,6 +206,18 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
 - A log the bot can't actually path to (e.g. sealed behind other blocks) is
   permanently skipped for the rest of that gather instead of being found
   and retried forever as "the nearest tree".
+- Verifies real, unobstructed line of sight to the log right before
+  digging (bot.blockAtCursor, the same raycast used for the killaura fix
+  in combat and the air-place fix in building) instead of trusting
+  mineflayer-pathfinder's own internal check for where to stop walking.
+  Live-reported the bot reaching through a leaf to break a log directly
+  behind it; pathfinder's own line-of-sight check validates against the
+  pathfinding node it stopped at, not necessarily the bot's exact final
+  stance once equip/dig timing plays out, so it can pass even when the
+  face actually being dug isn't really visible. If the independent
+  recheck fails, that log is treated the same as any other unreachable
+  one (skipped, tries the next queued log) rather than digging through
+  the obstruction.
 - Won't vandalize player builds made of log blocks (cabins, fences, etc.):
   before chopping, it checks whether the found log has *natural* leaves
   touching it (leaves with the "persistent" blockstate off - hand-placed
