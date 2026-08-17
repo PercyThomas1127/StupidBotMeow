@@ -462,6 +462,9 @@ function connect() {
     }
 
     let buildCancelled = false
+    // true only while buildSchematic actively owns bot.pathfinder for its own
+    // goto()/GoalPlaceBlock calls - see attackHostilesTick's guard below for why
+    let building = false
 
     const buildSchematic = async (payload) => {
         const hereMatch = payload && payload.match(/^(\S+)\s+here\.?$/i)
@@ -486,59 +489,67 @@ function connect() {
             : { x: parseInt(atMatch[2], 10), y: parseInt(atMatch[3], 10), z: parseInt(atMatch[4], 10) }
         const plan = schematicBuilder.buildPlan(schematic, anchor)
         buildCancelled = false
+        // hand pathfinder ownership off cleanly from any in-progress combat
+        // chase - see attackHostilesTick's guard below for why this matters
+        stopFollowing()
+        building = true
         console.log(`[BUILD] Building ${name} (${plan.length} blocks)...`)
 
-        let placed = 0
-        let skipped = 0
-        let announcedOutOfMaterials = false
-        for (const step of plan) {
-            if (buildCancelled) {
-                console.log(`[BUILD] Build cancelled (${placed} placed, ${skipped} skipped).`)
-                return
-            }
-
-            const position = new Vec3(step.x, step.y, step.z)
-            const existing = bot.blockAt(position)
-            if (existing && existing.name === step.blockName) {
-                placed++
-                continue
-            }
-
-            const item = bot.inventory.items().find(i => i.name === step.blockName)
-            if (!item) {
-                if (!announcedOutOfMaterials) {
-                    console.log('[BUILD] Oops I ran out of materials')
-                    announcedOutOfMaterials = true
+        try {
+            let placed = 0
+            let skipped = 0
+            let announcedOutOfMaterials = false
+            for (const step of plan) {
+                if (buildCancelled) {
+                    console.log(`[BUILD] Build cancelled (${placed} placed, ${skipped} skipped).`)
+                    return
                 }
-                skipped++
-                continue
-            }
 
-            try {
-                try {
-                    await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
-                } catch (gotoErr) {
-                    // couldn't path there directly - if it's simply because the
-                    // target is higher than we can reach, bridge up to it
-                    // ourselves and retry once, instead of giving up immediately
-                    if (bot.entity.position.y >= position.y - 1) throw gotoErr
-                    await bridgeUp(position.y, step.blockName)
-                    await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                const position = new Vec3(step.x, step.y, step.z)
+                const existing = bot.blockAt(position)
+                if (existing && existing.name === step.blockName) {
+                    placed++
+                    continue
                 }
-                const reference = findPlacementReference(position)
-                if (!reference) {
+
+                const item = bot.inventory.items().find(i => i.name === step.blockName)
+                if (!item) {
+                    if (!announcedOutOfMaterials) {
+                        console.log('[BUILD] Oops I ran out of materials')
+                        announcedOutOfMaterials = true
+                    }
                     skipped++
                     continue
                 }
-                await bot.equip(item, 'hand')
-                await bot.placeBlock(reference.referenceBlock, reference.faceVector)
-                placed++
-            } catch (err) {
-                log('BUILD_ERROR', { position: step, block: step.blockName, error: err.message })
-                skipped++
+
+                try {
+                    try {
+                        await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                    } catch (gotoErr) {
+                        // couldn't path there directly - if it's simply because the
+                        // target is higher than we can reach, bridge up to it
+                        // ourselves and retry once, instead of giving up immediately
+                        if (bot.entity.position.y >= position.y - 1) throw gotoErr
+                        await bridgeUp(position.y, step.blockName)
+                        await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
+                    }
+                    const reference = findPlacementReference(position)
+                    if (!reference) {
+                        skipped++
+                        continue
+                    }
+                    await bot.equip(item, 'hand')
+                    await bot.placeBlock(reference.referenceBlock, reference.faceVector)
+                    placed++
+                } catch (err) {
+                    log('BUILD_ERROR', { position: step, block: step.blockName, error: err.message })
+                    skipped++
+                }
             }
+            console.log(`[BUILD] Build complete: ${placed} placed, ${skipped} skipped.`)
+        } finally {
+            building = false
         }
-        console.log(`[BUILD] Build complete: ${placed} placed, ${skipped} skipped.`)
     }
 
     // picks whatever tool matches the block's required category (using
@@ -565,6 +576,10 @@ function connect() {
     }
 
     let gatherCancelled = false
+    // true only while gatherWood/chopTree actively own bot.pathfinder for
+    // their own goto()/GoalLookAtBlock calls - see attackHostilesTick's
+    // guard below for why this matters
+    let gatheringWood = false
     const isLogBlock = (block) => !!block && (block.name.endsWith('_log') || block.name.endsWith('_stem'))
     const GATHER_WOOD_TIMEOUT_MS = 10000
 
@@ -712,32 +727,40 @@ function connect() {
             return
         }
         gatherCancelled = false
+        // hand pathfinder ownership off cleanly from any in-progress combat
+        // chase - see attackHostilesTick's guard below for why this matters
+        stopFollowing()
+        gatheringWood = true
 
-        let collected = 0
-        let targetLogName = null
-        const unreachable = new Set()
-        const rejectedOrigins = []
-        console.log(`[GATHER_WOOD] Looking for a tree (target: ${targetCount} logs)...`)
+        try {
+            let collected = 0
+            let targetLogName = null
+            const unreachable = new Set()
+            const rejectedOrigins = []
+            console.log(`[GATHER_WOOD] Looking for a tree (target: ${targetCount} logs)...`)
 
-        while (collected < targetCount) {
-            const tree = await findTree(targetLogName, GATHER_WOOD_TIMEOUT_MS, unreachable, rejectedOrigins)
-            if (gatherCancelled) {
-                console.log(`[GATHER_WOOD] Cancelled (${collected}/${targetCount} collected).`)
-                return
+            while (collected < targetCount) {
+                const tree = await findTree(targetLogName, GATHER_WOOD_TIMEOUT_MS, unreachable, rejectedOrigins)
+                if (gatherCancelled) {
+                    console.log(`[GATHER_WOOD] Cancelled (${collected}/${targetCount} collected).`)
+                    return
+                }
+                if (!tree) {
+                    console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after ${GATHER_WOOD_TIMEOUT_MS / 1000}s, stopping (${collected}/${targetCount} collected).`)
+                    return
+                }
+                if (!isPartOfRealTree(tree)) {
+                    console.log(`[GATHER_WOOD] Log at ${tree.position} doesn't look like a real tree (no leaves nearby) - skipping, likely a player build.`)
+                    rejectedOrigins.push(tree.position)
+                    continue
+                }
+                targetLogName = tree.name
+                collected += await chopTree(tree, targetCount - collected, unreachable)
             }
-            if (!tree) {
-                console.log(`[GATHER_WOOD] No ${targetLogName || 'tree'} found nearby after ${GATHER_WOOD_TIMEOUT_MS / 1000}s, stopping (${collected}/${targetCount} collected).`)
-                return
-            }
-            if (!isPartOfRealTree(tree)) {
-                console.log(`[GATHER_WOOD] Log at ${tree.position} doesn't look like a real tree (no leaves nearby) - skipping, likely a player build.`)
-                rejectedOrigins.push(tree.position)
-                continue
-            }
-            targetLogName = tree.name
-            collected += await chopTree(tree, targetCount - collected, unreachable)
+            console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
+        } finally {
+            gatheringWood = false
         }
-        console.log(`[GATHER_WOOD] Done, collected ${collected}/${targetCount} logs.`)
     }
 
     // auto-eat: always on, no toggle - once hunger drops to 8 of the 10
@@ -859,7 +882,23 @@ function connect() {
         // holding the food item, so switching to a weapon mid-bite would
         // cancel it. Combat simply waits until autoEatTick finishes (it's a
         // few seconds at most) rather than fighting over the held item.
-        if (!attackHostilesEnabled || !bot.entity || autoEating) return
+        //
+        // don't interrupt wood-gathering or building either - gatherWood/
+        // chopTree and buildSchematic each own bot.pathfinder for their own
+        // goto()/GoalLookAtBlock/GoalPlaceBlock calls, and this tick runs
+        // every 150ms regardless of what else is happening. Calling setGoal()
+        // here while one of those is mid-goto rejects it with mineflayer-
+        // pathfinder's "The goal was changed before it could be completed!"
+        // (lib/goto.js) - confirmed live: gathering wood near a hostile mob
+        // reliably produced that exact error, immediately preceded by
+        // "pathfinder timed out"/"Path was stopped" as the two goals kept
+        // clobbering each other. That kind of constant goal-thrashing means
+        // genuinely erratic, physically-inconsistent movement - exactly what
+        // got the bot banned for "bad packets" on a live server while
+        // gathering wood. Deferring combat until the task finishes trades
+        // away self-defense during that window for movement that isn't
+        // fighting itself.
+        if (!attackHostilesEnabled || !bot.entity || autoEating || gatheringWood || building) return
         const target = findNearestHostile()
         if (!target) {
             stopFollowing()

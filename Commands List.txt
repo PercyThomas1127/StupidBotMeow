@@ -232,6 +232,20 @@ checkbox):
   timing, since mineflayer doesn't expose the real per-weapon attack
   cooldown - actual timing may be slightly off for non-sword weapons or
   bare-handed fighting.
+- Fully stands down while "Meow, gather wood" or "Meow, build" is running -
+  it won't chase or attack anything until the task finishes or is cancelled
+  with "Meow, stop.". Both gatherWood/chopTree and buildSchematic also drive
+  bot.pathfinder for their own walking, and this combat tick used to call
+  setGoal on top of whatever they were doing every 150ms regardless -
+  mineflayer-pathfinder rejects the interrupted goto() with "The goal was
+  changed before it could be completed!" the instant that happens, and
+  fighting over the single pathfinder goal like that produces constant,
+  erratic, physically-inconsistent movement. This is exactly the pattern
+  that got the bot anticheat-banned for "bad packets" on a live server
+  while gathering wood near a hostile mob - reproduced reliably on the
+  local test server and fixed by having combat defer entirely during those
+  two tasks. Trade-off: no self-defense while gathering/building, even if
+  something is actively attacking the bot.
 
 Local test server (for testing without ggsmp.net's flaky connection):
 - A Paper 1.21.11 server lives at ~/mc-test-server (outside this repo -
