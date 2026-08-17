@@ -134,6 +134,21 @@ Schematic builder notes/limitations (schematic-builder.js):
   equivalent capping the work in one call.
 - Only *places* blocks - never breaks/clears existing terrain, so pick an
   anchor with clear space, or expect leftover terrain poking through.
+- Never air-places: every placement always references a real, adjacent
+  solid block (mineflayer's placeBlock has no "just set this air position
+  to a block" mode - it's always a right-click-a-face interaction against
+  a real reference block). On top of that, before placing it verifies the
+  chosen reference face is actually visible/in reach (bot.blockAtCursor,
+  the same raycast primitive used for the killaura fix in combat) rather
+  than just trusting proximity to the target position - the pathfinder
+  goal used to walk there is called with LOS:false, so it can stop close
+  enough to the target without necessarily having a clear line of sight
+  to the specific face that was picked as the reference. If the actual
+  raycast doesn't land on that block (something's in the way), the
+  placement is skipped instead of clicking through the obstruction.
+  Live-verified in both directions: an unobstructed reference correctly
+  passes, and a wall placed between the bot and a reference correctly
+  fails.
 - Skips any block it doesn't already have in its inventory (counts as
   "skipped" in the completion message) - stock the bot up first. Logs "Oops
   I ran out of materials" to the console (not public chat) the first time

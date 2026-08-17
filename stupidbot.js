@@ -366,6 +366,29 @@ function connect() {
         return null
     }
 
+    // mineflayer's placeBlock always references a real adjacent solid block
+    // (never a bare "set this air position to a block" command), so it can't
+    // air-place in the sense of placing with no reference at all - but the
+    // GoalPlaceBlock goal used below is called with LOS:false, so the bot can
+    // stop within range of the target position without actually having a
+    // clear line of sight to the specific face findPlacementReference picked.
+    // Placing there anyway would be a "click through the wall/obstruction"
+    // placement no real player could make from that spot - the same category
+    // of issue already fixed for combat (killaura, via bot.entityAtCursor),
+    // just for building instead of attacking. bot.blockAtCursor raycasts
+    // along wherever the bot is currently looking, so this looks at the
+    // face's center first (the same point placeBlock itself looks at
+    // internally right before placing) and then verifies the raycast
+    // actually lands on that same block within real reach, rather than
+    // trusting proximity to the target position alone.
+    const PLACEMENT_REACH = 4.5
+    const canReachPlacementFace = async (referenceBlock, faceVector) => {
+        const facePoint = referenceBlock.position.offset(0.5 + faceVector.x * 0.5, 0.5 + faceVector.y * 0.5, 0.5 + faceVector.z * 0.5)
+        await bot.lookAt(facePoint, true)
+        const hit = bot.blockAtCursor(PLACEMENT_REACH)
+        return !!hit && hit.position.equals(referenceBlock.position)
+    }
+
     // bot.pathfinder.goto() can hang indefinitely with no error and no
     // timeout of its own - most commonly when its built-in scaffolding
     // (jump + place a block underfoot to climb) gets stuck retrying a
@@ -534,7 +557,7 @@ function connect() {
                         await gotoWithTimeout(new goals.GoalPlaceBlock(position, bot.world, { range: 4, LOS: false }))
                     }
                     const reference = findPlacementReference(position)
-                    if (!reference) {
+                    if (!reference || !(await canReachPlacementFace(reference.referenceBlock, reference.faceVector))) {
                         skipped++
                         continue
                     }
