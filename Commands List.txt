@@ -160,7 +160,17 @@ Wood gathering notes/limitations ("Meow, gather wood (n)."):
   right tool, it just digs with whatever's already held (fist included)
   instead of refusing.
 - Searches for the nearest log-type block (anything ending in "_log" or
-  "_stem") within 48 blocks, giving up after 10 seconds if none is found.
+  "_stem") within 32 blocks, giving up after 10 seconds if none is found.
+  Searches in escalating radius tiers (8/16/24/32 blocks), yielding to the
+  event loop between each tier, instead of one single big-radius scan -
+  the underlying block search is fully synchronous and blocks the whole
+  process for its duration (measured ~200ms for a single 48-block scan
+  even on a small local test world), and a freeze that long delays every
+  packet the bot should be sending, which reads to a strict anticheat as
+  exactly the kind of timing irregularity a "bad packets" check exists to
+  catch. Tiering keeps the common case (a tree found in the first tier or
+  two) cheap and only pays for a bigger synchronous burst on rarer, wider
+  searches.
 - Once a tree is found, every log block connected to it (trunk plus any
   log-only branches) of that exact same wood type is chopped, stopping
   early the instant n total logs have been collected even if part of the

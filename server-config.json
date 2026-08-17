@@ -1,6 +1,7 @@
 {
-  "host": "localhost",
+  "host": "play.skeletonmc.com",
   "port": 25565,
-  "username": "TestBot",
+  "username": "stupidbotidk",
+  "version": null,
   "hubNpcName": null
 }

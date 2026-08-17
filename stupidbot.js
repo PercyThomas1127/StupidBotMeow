@@ -590,25 +590,41 @@ function connect() {
     // path to (e.g. sealed in a cave wall) doesn't just get found again
     // immediately as "the nearest match" and re-attempted forever
     const TREE_SEARCH_POLL_MS = 2000
+    // bot.findBlock is a synchronous scan over every loaded block within
+    // maxDistance (mineflayer/lib/plugins/blocks.js) - it fully blocks the
+    // event loop for the duration, no yielding internally. Measured live at
+    // ~200ms for a single maxDistance:48 call even on a small, sparse local
+    // test world; a real server's denser, more varied terrain blocks
+    // considerably longer. A freeze that long delays every other packet the
+    // bot should be sending/processing during that window, which is exactly
+    // the kind of timing irregularity a strict anticheat's "bad packets"
+    // check is built to catch - this lined up with a live kick landing
+    // ~0.2s after a search started, with nothing else happening in between.
+    // Searching in escalating radius tiers and yielding to the event loop
+    // between them (instead of one big maxDistance:48 call) keeps the
+    // common case - a tree within the first tier or two - cheap, and only
+    // pays for a larger synchronous burst on the rarer wider searches.
+    const TREE_SEARCH_RADII = [8, 16, 24, 32]
     const findTree = async (matchName, timeoutMs, unreachable, rejectedOrigins) => {
         const deadline = Date.now() + timeoutMs
+        const matching = (b) => {
+            if (matchName ? b.name !== matchName : !isLogBlock(b)) return false
+            // findBlock does a fast palette pre-check per chunk section using a
+            // synthetic Block.fromStateId() with no real position attached - only
+            // the name/type matters there; position-based exclusions only apply
+            // once a real per-block candidate (with a position) is being checked
+            if (!b.position) return true
+            if (unreachable.has(b.position.toString())) return false
+            if (rejectedOrigins.some((p) => b.position.distanceTo(p) < NON_TREE_EXCLUSION_RADIUS)) return false
+            return true
+        }
         while (Date.now() < deadline) {
-            if (gatherCancelled) return null
-            const block = bot.findBlock({
-                matching: (b) => {
-                    if (matchName ? b.name !== matchName : !isLogBlock(b)) return false
-                    // findBlock does a fast palette pre-check per chunk section using a
-                    // synthetic Block.fromStateId() with no real position attached - only
-                    // the name/type matters there; position-based exclusions only apply
-                    // once a real per-block candidate (with a position) is being checked
-                    if (!b.position) return true
-                    if (unreachable.has(b.position.toString())) return false
-                    if (rejectedOrigins.some((p) => b.position.distanceTo(p) < NON_TREE_EXCLUSION_RADIUS)) return false
-                    return true
-                },
-                maxDistance: 48,
-            })
-            if (block) return block
+            for (const maxDistance of TREE_SEARCH_RADII) {
+                if (gatherCancelled) return null
+                const block = bot.findBlock({ matching, maxDistance })
+                if (block) return block
+                await new Promise((resolve) => setImmediate(resolve))
+            }
             await new Promise((resolve) => setTimeout(resolve, TREE_SEARCH_POLL_MS))
         }
         return null
