@@ -11,6 +11,14 @@ const log = (label, detail) => {
     fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${label} ${JSON.stringify(detail)}\n`);
 };
 
+// status/toggle/error messages that used to be bot.chat()'d into public
+// in-game chat for our own benefit (not the other players') - console.log
+// instead, which the control panel's fork() already captures and streams to
+// its Console panel, so we still see them without spamming the server chat
+const announce = (message) => {
+    console.log(message);
+};
+
 // last line of defense - the actions dispatcher (see connect()) already
 // catches failures from in-game commands, but interval/event-handler
 // callbacks (attackHostilesTick, autoEatTick, bot.on(...) handlers, etc.)
@@ -321,7 +329,7 @@ function connect() {
     const equipTotem = (attempt = 1) => {
         const totem = bot.inventory.items().find(item => item.name === 'totem_of_undying')
         if (!totem) {
-            bot.chat('Totem required')
+            announce('Totem required')
             return
         }
 
@@ -509,7 +517,7 @@ function connect() {
         const hereMatch = payload && payload.match(/^(\S+)\s+here\.?$/i)
         const atMatch = payload && payload.match(/^(\S+)\s+at\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\.?$/i)
         if (!hereMatch && !atMatch) {
-            bot.chat('Usage: Meow, build <name> at <x> <y> <z>. (or "Meow, build <name> here.")')
+            announce('Usage: Meow, build <name> at <x> <y> <z>. (or "Meow, build <name> here.")')
             return
         }
         const name = hereMatch ? hereMatch[1] : atMatch[1]
@@ -519,7 +527,7 @@ function connect() {
             return null
         })
         if (!schematic) {
-            bot.chat(`Schematic not found: ${name}`)
+            announce(`Schematic not found: ${name}`)
             return
         }
 
@@ -781,7 +789,7 @@ function connect() {
     const gatherWood = async (payload) => {
         const targetCount = parseInt(payload, 10)
         if (!payload || !Number.isFinite(targetCount) || targetCount <= 0) {
-            bot.chat('Usage: Meow, gather wood (n).')
+            announce('Usage: Meow, gather wood (n).')
             return
         }
         gatherCancelled = false
@@ -1166,7 +1174,7 @@ function connect() {
         },
         disableTotemMode: () => {
             totemModeActive = false
-            bot.chat('Totem mode disabled.')
+            announce('Totem mode disabled.')
             reportStatus()
         },
         dropItem: () => dropHeldItemStack(),
@@ -1179,29 +1187,29 @@ function connect() {
         },
         enableChatGames: () => {
             chatGamesEnabled = true
-            bot.chat('Chat game solver enabled.')
+            announce('Chat game solver enabled.')
             reportStatus()
         },
         disableChatGames: () => {
             chatGamesEnabled = false
-            bot.chat('Chat game solver disabled.')
+            announce('Chat game solver disabled.')
             reportStatus()
         },
         toggleChatGames: () => {
             chatGamesEnabled = !chatGamesEnabled
-            bot.chat(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
+            announce(`Chat game solver ${chatGamesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },
         enableAttackHostiles: () => {
             attackHostilesEnabled = true
-            bot.chat('Attack hostile mobs enabled.')
+            announce('Attack hostile mobs enabled.')
             reportStatus()
         },
         disableAttackHostiles: () => {
             attackHostilesEnabled = false
             stopFollowing()
             stopCombatMovement()
-            bot.chat('Attack hostile mobs disabled.')
+            announce('Attack hostile mobs disabled.')
             reportStatus()
         },
         toggleAttackHostiles: () => {
@@ -1210,13 +1218,13 @@ function connect() {
                 stopFollowing()
                 stopCombatMovement()
             }
-            bot.chat(`Attack hostile mobs ${attackHostilesEnabled ? 'enabled' : 'disabled'}.`)
+            announce(`Attack hostile mobs ${attackHostilesEnabled ? 'enabled' : 'disabled'}.`)
             reportStatus()
         },
         walkToMe: (username) => {
             const target = username && bot.players[username] && bot.players[username].entity
             if (!target) {
-                bot.chat(`Can't see ${username || 'you'}`)
+                announce(`Can't see ${username || 'you'}`)
                 return
             }
             const { x, y, z } = target.position
